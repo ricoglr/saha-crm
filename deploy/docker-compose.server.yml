@@ -1,0 +1,31 @@
+# Runs behind the existing Nginx Proxy Manager (owns ports 80/443 + HTTPS).
+# NPM proxy host: <your-domain> -> saha-crm:80
+# Database: the server's existing PostgreSQL (container postgres-db-postgres-1), own database "saha_crm".
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.static
+    container_name: saha-crm
+    restart: unless-stopped
+    networks: [npm, internal]
+
+  api:
+    build: ./api
+    container_name: saha-crm-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      COOKIE_SECURE: "true"
+      PORT: "3000"
+    mem_limit: 256m
+    networks: [internal, db]
+
+networks:
+  internal: {}
+  npm:
+    external: true
+    name: nginx-proxy-manager_default
+  db:
+    external: true
+    name: postgres-db_default

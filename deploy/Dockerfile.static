@@ -1,0 +1,4 @@
+# Serves an already-built dist/ (built on the developer machine; keeps the small server free of Node builds)
+FROM nginx:1.27-alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY dist /usr/share/nginx/html
