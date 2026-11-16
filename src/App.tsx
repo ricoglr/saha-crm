@@ -78,7 +78,7 @@ function Shell() {
   return (
     <div className="app">
       <aside className={'sidebar' + (menu ? ' open' : '')}>
-        <div className="brand"><img src="/icon.svg" alt="" /><div><b>Saha CRM</b><small>Satış &amp; Pazarlama</small></div></div>
+        <div className="brand"><img src="/icon.svg" alt="" /><div><b>Saha CRM</b><small title={user?.company}>{user?.company || 'Satış & Pazarlama'}</small></div></div>
         <nav>
           {nav.map(([p, I, l]) => (
             <a key={p} href={'#' + p} className={active(p) ? 'on' : ''} onClick={() => setMenu(false)}><I size={17} strokeWidth={1.8} />{l}</a>

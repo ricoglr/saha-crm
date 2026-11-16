@@ -1,18 +1,17 @@
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
-import { sql } from './db.js';
-import { TABLES, migrate, toRow, fromRow, col } from './schema.js';
+import { TABLES, toRow, fromRow, col } from './schema.js';
 import {
   hashPassword, checkPassword, validatePassword, setSession, clearSession, publicUser, requireUser, requireAdmin,
   tooManyAttempts, noteFailure, clearFailures
 } from './auth.js';
+import { initControl, control, tenantForEmail, tenantSql, createTenantUser, updateTenantUser, normEmail } from './tenants.js';
+import platformRoutes from './platform.js';
 
 const app = Fastify({ trustProxy: true, bodyLimit: 25 * 1024 * 1024, logger: { level: process.env.LOG_LEVEL || 'warn' } });
 await app.register(cookie);
 
 const bad = (reply, msg, code = 400) => reply.code(code).send({ error: msg });
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const normEmail = (e) => String(e || '').trim().toLowerCase();
 
 app.setErrorHandler((err, req, reply) => {
   req.log.error(err);
@@ -21,7 +20,7 @@ app.setErrorHandler((err, req, reply) => {
 });
 
 app.get('/api/health', async () => {
-  await sql`select 1`;
+  await control`select 1`;
   return { ok: true };
 });
 
@@ -31,16 +30,18 @@ app.post('/api/auth/login', async (req, reply) => {
   const password = String(req.body?.password || '');
   const key = req.ip + '|' + email;
   if (tooManyAttempts(key)) return bad(reply, 'Çok fazla hatalı deneme. 15 dakika sonra tekrar deneyin.', 429);
-  const [u] = await sql`select * from users where email = ${email}`;
+  const tenant = await tenantForEmail(email);
+  const [u] = tenant && tenant.status !== 'deleted' ? await tenantSql(tenant)`select * from users where email = ${email}` : [];
   if (!u || !(await checkPassword(password, u.password_hash))) {
     noteFailure(key);
     return bad(reply, 'E-posta veya şifre hatalı.', 401);
   }
+  if (tenant.status === 'suspended') return bad(reply, 'Firmanızın erişimi askıya alındı. Yazılım sağlayıcınızla görüşün.', 403);
   if (!u.active) return bad(reply, 'Hesabınız devre dışı. Yöneticinizle görüşün.', 403);
   clearFailures(key);
-  await sql`update users set last_login_at = now() where id = ${u.id}`;
-  setSession(reply, u);
-  return { user: publicUser(u) };
+  await tenantSql(tenant)`update users set last_login_at = now() where id = ${u.id}`;
+  setSession(reply, u, tenant.id);
+  return { user: publicUser(u), tenant: { name: tenant.name } };
 });
 
 app.post('/api/auth/logout', async (req, reply) => {
@@ -48,23 +49,24 @@ app.post('/api/auth/logout', async (req, reply) => {
   return { ok: true };
 });
 
-app.get('/api/me', { preHandler: requireUser }, async (req) => ({ user: publicUser(req.user) }));
+app.get('/api/me', { preHandler: requireUser }, async (req) => ({ user: publicUser(req.user), tenant: { name: req.tenant.name } }));
 
 app.post('/api/me/password', { preHandler: requireUser }, async (req, reply) => {
   const { current, next } = req.body || {};
   if (!(await checkPassword(String(current || ''), req.user.password_hash))) return bad(reply, 'Mevcut şifre hatalı.');
   const err = validatePassword(next);
   if (err) return bad(reply, err);
-  const [u] = await sql`
+  const [u] = await req.sql`
     update users set password_hash = ${await hashPassword(next)}, token_version = token_version + 1
     where id = ${req.user.id} returning *`;
-  setSession(reply, u); // this device stays signed in, other devices are signed out
+  setSession(reply, u, req.tenant.id); // this device stays signed in, other devices are signed out
   return { ok: true };
 });
 
 /* ---------------- sync ---------------- */
 app.post('/api/sync', { preHandler: requireUser }, async (req, reply) => {
   const me = req.user.id;
+  const sql = req.sql;
   const since = Math.max(0, Number(req.body?.since) || 0);
   const changes = Array.isArray(req.body?.changes) ? req.body.changes : [];
   if (changes.length > 20000) return bad(reply, 'Çok fazla değişiklik tek seferde gönderildi.');
@@ -106,71 +108,28 @@ app.post('/api/sync', { preHandler: requireUser }, async (req, reply) => {
 });
 
 /* ---------------- admin ---------------- */
-app.get('/api/admin/users', { preHandler: requireAdmin }, async () => {
-  const users = await sql`
+app.get('/api/admin/users', { preHandler: requireAdmin }, async (req) => {
+  const users = await req.sql`
     select u.id, u.email, u.name, u.role, u.active, u.created_at, u.last_login_at, u.last_sync_at,
       (select count(*) from customers c where c.owner_id = u.id and not c.deleted)::int as customers,
       (select count(*) from visits v where v.owner_id = u.id and not v.deleted)::int as visits
     from users u order by u.active desc, u.name`;
-  return { users };
+  return { users, maxUsers: req.tenant.max_users };
 });
 
-app.post('/api/admin/users', { preHandler: requireAdmin }, async (req, reply) => {
-  const email = normEmail(req.body?.email);
-  const name = String(req.body?.name || '').trim();
-  const role = req.body?.role === 'admin' ? 'admin' : 'rep';
-  if (!EMAIL.test(email)) return bad(reply, 'Geçerli bir e-posta girin.');
-  if (!name) return bad(reply, 'Ad soyad gerekli.');
-  const err = validatePassword(req.body?.password);
-  if (err) return bad(reply, err);
-  const [exists] = await sql`select 1 from users where email = ${email}`;
-  if (exists) return bad(reply, 'Bu e-posta ile bir kullanıcı zaten var.');
-  const [u] = await sql`
-    insert into users (email, name, role, password_hash)
-    values (${email}, ${name}, ${role}, ${await hashPassword(req.body.password)}) returning *`;
+app.post('/api/admin/users', { preHandler: requireAdmin }, async (req) => {
+  const u = await createTenantUser(req.tenant, req.body || {});
   return { user: publicUser(u) };
 });
 
 app.patch('/api/admin/users/:id', { preHandler: requireAdmin }, async (req, reply) => {
-  const id = req.params.id;
-  const b = req.body || {};
-  const [u] = await sql`select * from users where id = ${id}`;
-  if (!u) return bad(reply, 'Kullanıcı bulunamadı.', 404);
-  const self = id === req.user.id;
-  const set = {};
-  if (b.name !== undefined) { const n = String(b.name).trim(); if (!n) return bad(reply, 'Ad soyad gerekli.'); set.name = n; }
-  if (b.email !== undefined) {
-    const e = normEmail(b.email);
-    if (!EMAIL.test(e)) return bad(reply, 'Geçerli bir e-posta girin.');
-    const [dup] = await sql`select 1 from users where email = ${e} and id <> ${id}`;
-    if (dup) return bad(reply, 'Bu e-posta başka bir kullanıcıda kayıtlı.');
-    set.email = e;
-  }
-  if (b.role !== undefined) {
-    if (self && b.role !== 'admin') return bad(reply, 'Kendi admin yetkinizi kaldıramazsınız.');
-    set.role = b.role === 'admin' ? 'admin' : 'rep';
-  }
-  let bump = false;
-  if (b.active !== undefined) {
-    if (self && !b.active) return bad(reply, 'Kendi hesabınızı devre dışı bırakamazsınız.');
-    set.active = !!b.active;
-    if (!b.active) bump = true;
-  }
-  if (b.password) {
-    const err = validatePassword(b.password);
-    if (err) return bad(reply, err);
-    set.password_hash = await hashPassword(b.password);
-    bump = true;
-  }
-  if (!Object.keys(set).length) return { ok: true };
-  const [updated] = bump
-    ? await sql`update users set ${sql(set)}, token_version = token_version + 1 where id = ${id} returning *`
-    : await sql`update users set ${sql(set)} where id = ${id} returning *`;
-  if (self && bump) setSession(reply, updated);
-  return { user: publicUser(updated) };
+  const u = await updateTenantUser(req.tenant, req.params.id, req.body || {}, { selfId: req.user.id });
+  if (u.id === req.user.id && u._bumped) setSession(reply, u, req.tenant.id);
+  return { user: publicUser(u) };
 });
 
 app.get('/api/admin/overview', { preHandler: requireAdmin }, async (req) => {
+  const sql = req.sql;
   const from = /^\d{4}-\d{2}-\d{2}$/.test(req.query.from || '') ? req.query.from : '1900-01-01';
   const to = /^\d{4}-\d{2}-\d{2}$/.test(req.query.to || '') ? req.query.to : '2999-12-31';
   const reps = await sql`
@@ -206,6 +165,7 @@ app.get('/api/admin/overview', { preHandler: requireAdmin }, async (req) => {
 const DATE_FIELD = { visits: 'date', quotes: 'date', barters: 'date', projects: 'start_date', customers: null, regions: null };
 
 app.get('/api/admin/records/:table', { preHandler: requireAdmin }, async (req, reply) => {
+  const sql = req.sql;
   const table = req.params.table;
   if (!TABLES[table]) return bad(reply, 'Bilinmeyen tablo.', 404);
   const { owner, q, from, to } = req.query;
@@ -237,7 +197,9 @@ app.get('/api/admin/records/:table', { preHandler: requireAdmin }, async (req, r
   };
 });
 
-await migrate();
+await app.register(platformRoutes, { prefix: '/api/platform' });
+
+await initControl();
 const port = Number(process.env.PORT || 3000);
 await app.listen({ port, host: '0.0.0.0' });
 console.log(`saha-crm api listening on :${port}`);

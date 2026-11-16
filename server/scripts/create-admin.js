@@ -1,8 +1,8 @@
-// Interactive: creates (or promotes) an admin user. The password is typed by the person running it.
-// Usage: node --env-file=.env scripts/create-admin.js   (in Docker: docker exec -it saha-crm-api node scripts/create-admin.js)
+// Interactive: creates (or resets) a COMPANY admin inside an existing company.
+// Usually done from the platform panel; this is the command-line fallback.
+// Usage: node --env-file=.env scripts/create-admin.js
 import readline from 'node:readline';
-import { sql } from '../src/db.js';
-import { migrate } from '../src/schema.js';
+import { initControl, control, tenantSql, createTenantUser } from '../src/tenants.js';
 import { hashPassword, validatePassword } from '../src/auth.js';
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -16,7 +16,12 @@ function askHidden(q) {
   });
 }
 
-await migrate();
+await initControl();
+const tenants = await control`select slug, name from tenants where status <> 'deleted' order by created_at`;
+console.log('Firmalar: ' + tenants.map((t) => `${t.slug} (${t.name})`).join(', '));
+const slug = (await ask('Firma kodu: ')).trim().toLowerCase();
+const [t] = await control`select * from tenants where slug = ${slug} and status <> 'deleted'`;
+if (!t) { console.log('Firma bulunamadı.'); process.exit(1); }
 const email = (await ask('E-posta: ')).trim().toLowerCase();
 const name = (await ask('Ad soyad: ')).trim();
 let pw;
@@ -27,12 +32,13 @@ for (;;) {
   if ((await askHidden('Şifre (tekrar): ')) !== pw) { console.log('Şifreler aynı değil.'); continue; }
   break;
 }
-const hash = await hashPassword(pw);
-const [u] = await sql`
-  insert into users (email, name, role, password_hash) values (${email}, ${name || email}, 'admin', ${hash})
-  on conflict (email) do update set role = 'admin', active = true, password_hash = ${hash},
-    name = coalesce(nullif(${name}, ''), users.name), token_version = users.token_version + 1
-  returning email, name, role`;
-console.log(`Hazır: ${u.name} <${u.email}> (${u.role})`);
+const sql = tenantSql(t);
+const [existing] = await sql`select id from users where email = ${email}`;
+if (existing) {
+  await sql`update users set role = 'admin', active = true, password_hash = ${await hashPassword(pw)}, token_version = token_version + 1 where id = ${existing.id}`;
+} else {
+  await createTenantUser(t, { email, name: name || email, role: 'admin', password: pw }, { ignoreLimit: true });
+}
+console.log(`Hazır: ${email} → ${t.name} (yönetici)`);
 rl.close();
-await sql.end();
+process.exit(0);

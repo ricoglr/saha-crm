@@ -1,5 +1,3 @@
-import { sql } from './db.js';
-
 // Synced collections. Keys are the field names the app uses; values are the SQL type.
 // Every table also gets: owner_id, id, rev, updated_at, deleted  (PK = owner_id + id)
 export const TABLES = {
@@ -33,7 +31,8 @@ export const TABLES = {
 const RENAMED = { group: 'grp', updatedAt: 'client_updated_at' };
 export const col = (f) => RENAMED[f] || f.replace(/[A-Z]/g, (c) => '_' + c.toLowerCase());
 
-export async function migrate() {
+/** Creates / upgrades one company's database. */
+export async function migrate(sql) {
   await sql`create extension if not exists pgcrypto`;
   await sql`create sequence if not exists rev_seq`;
   await sql`

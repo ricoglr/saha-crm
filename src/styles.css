@@ -54,7 +54,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--primary); box-sh
 .brand img { width: 30px; height: 30px; border-radius: 6px; }
 .brand div { display: flex; flex-direction: column; line-height: 1.2; }
 .brand b { color: #fff; font-size: 15px; }
-.brand small { font-size: 11px; color: var(--nav-ink); opacity: .8; }
+.brand small { font-size: 11px; color: var(--nav-ink); opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brand div { min-width: 0; }
 .sidebar nav { display: flex; flex-direction: column; padding: 10px 8px; gap: 1px; overflow-y: auto; }
 .sidebar nav a { color: var(--nav-ink); padding: 8px 10px; border-radius: 6px; display: flex; gap: 10px; align-items: center; font-size: 13.5px; }
 .sidebar nav a:hover { background: rgba(255,255,255,.06); color: #fff; }

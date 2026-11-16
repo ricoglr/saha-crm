@@ -2,7 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { api } from './api';
 import { openUserDb } from './db';
 
-export type User = { id: string; email: string; name: string; role: 'admin' | 'rep' };
+export type User = { id: string; email: string; name: string; role: 'admin' | 'rep'; company?: string };
+type AuthReply = { user: User; tenant?: { name: string } };
+const withCompany = (r: AuthReply): User => ({ ...r.user, company: r.tenant?.name });
 type Auth = { user: User | null; login: (email: string, password: string) => Promise<void>; logout: () => Promise<void>; setUser: (u: User) => void };
 
 const KEY = 'crm-user';
@@ -23,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    api<{ user: User }>('/api/me').then((r) => setUser(r.user)).catch(() => { /* offline: keep cached user; 401 handled below */ });
+    api<AuthReply>('/api/me').then((r) => setUser(withCompany(r))).catch(() => { /* offline: keep cached user; 401 handled below */ });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
@@ -34,8 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [signOutLocal]);
 
   const login = async (email: string, password: string) => {
-    const r = await api<{ user: User }>('/api/auth/login', { email, password });
-    setUser(r.user);
+    setUser(withCompany(await api<AuthReply>('/api/auth/login', { email, password })));
   };
   const logout = async () => {
     try { await api('/api/auth/logout', {}); } catch { /* offline logout still clears the session locally */ }

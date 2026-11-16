@@ -1,9 +1,9 @@
-// Fills a LOCAL development database with realistic, fictional demo data.
+// Creates two fictional demo companies with realistic data in a LOCAL development setup.
 // Usage: npm run seed:demo        (refuses to run when NODE_ENV=production)
-// Demo logins (password for all: demo1234):
-//   yonetici@demo.local (admin) · ayse@demo.local · murat@demo.local · emre@demo.local
-import { sql } from '../src/db.js';
-import { migrate } from '../src/schema.js';
+// Platform panel (/platform): platform@demo.local / platform1234
+// Company "Demo Demir Çelik" (password demo1234): yonetici@demo.local (admin), ayse@ / murat@ / emre@demo.local
+// Company "Anadolu Metal"    (password demo1234): admin@anadolu.demo (admin), satis@anadolu.demo
+import { initControl, control, createTenant, createTenantUser, dropTenant, tenantSql } from '../src/tenants.js';
 import { hashPassword } from '../src/auth.js';
 import { randomUUID } from 'node:crypto';
 
@@ -30,21 +30,38 @@ const NOTES = ['Haftaya kesin miktar verecek.', 'Rakip firmadan da teklif almı�
   'Şantiye Mart’ta başlıyor, ilk etap ~200 ton.', 'Depo stoklarını görmek için ofise gelecek.', 'Memnunlar, düzenli alım devam ediyor.'];
 const LOST = ['Fiyat yüksek bulundu', 'Rakip daha ucuz verdi', 'Rakip daha ucuz verdi', 'Vade / ödeme şartı uymadı', 'Teslim süresi uzun', 'Nakliye maliyeti'];
 
-await migrate();
-for (const t of ['customers', 'visits', 'quotes', 'projects', 'barters', 'regions']) await sql.unsafe(`delete from ${t}`);
-await sql`delete from users where email like '%@demo.local'`;
+await initControl();
+for (const slug of ['demo', 'anadolu']) {
+  const [t] = await control`select * from tenants where slug = ${slug} and status <> 'deleted'`;
+  if (t) await dropTenant(t);
+  await control`delete from tenants where slug = ${slug}`;
+}
+await control`delete from audit_log`;
+await control`
+  insert into platform_admins (email, name, password_hash) values ('platform@demo.local', 'Platform Demo', ${await hashPassword('platform1234')})
+  on conflict (email) do nothing`;
 
-const pw = await hashPassword('demo1234');
-const users = [['yonetici@demo.local', 'Selim Aksoy', 'admin'], ['ayse@demo.local', 'Ayşe Demirtaş', 'rep'],
-  ['murat@demo.local', 'Murat Şener', 'rep'], ['emre@demo.local', 'Emre Kocabaş', 'rep']];
-const ids = [];
-for (const [email, name, role] of users) {
-  const [u] = await sql`insert into users (email, name, role, password_hash, last_login_at, last_sync_at)
-    values (${email}, ${name}, ${role}, ${pw}, now() - interval '2 hours', now() - interval '${sql.unsafe(String(int(1, 40)))} minutes') returning id`;
-  ids.push(u.id);
+async function company(slug, name, extra, people) {
+  const { tenant } = await createTenant({ slug, name, ...extra }, { email: people[0][0], name: people[0][1], password: 'demo1234' });
+  const ids = [];
+  const sql = tenantSql(tenant);
+  for (const [i, [email, pname, role]] of people.entries()) {
+    const u = i === 0 ? (await sql`select * from users where email = ${email}`)[0] : await createTenantUser(tenant, { email, name: pname, role, password: 'demo1234' }, { ignoreLimit: true });
+    await sql`update users set last_login_at = now() - interval '2 hours', last_sync_at = now() - make_interval(mins => ${int(1, 40)}) where id = ${u.id}`;
+    ids.push(u.id);
+  }
+  await control`insert into audit_log (actor_email, action, target, details) values ('platform@demo.local', 'tenant.create', ${slug}, ${control.json({ name })})`;
+  return { sql, ids };
 }
 
+const users = [['yonetici@demo.local', 'Selim Aksoy', 'admin'], ['ayse@demo.local', 'Ayşe Demirtaş', 'rep'],
+  ['murat@demo.local', 'Murat Şener', 'rep'], ['emre@demo.local', 'Emre Kocabaş', 'rep']];
+const demo = await company('demo', 'Demo Demir Çelik A.Ş.', { plan: 'Kurumsal', maxUsers: 10, contactName: 'Selim Aksoy', contactEmail: 'yonetici@demo.local', contactPhone: '0332 000 00 00' }, users);
+const anadolu = await company('anadolu', 'Anadolu Metal Ltd. Şti.', { plan: 'Başlangıç', maxUsers: 3, contactName: 'Kemal Ateş', contactEmail: 'admin@anadolu.demo' },
+  [['admin@anadolu.demo', 'Kemal Ateş', 'admin'], ['satis@anadolu.demo', 'Deniz Ok', 'rep']]);
+
 let counts = { customers: 0, visits: 0, quotes: 0, projects: 0, barters: 0 };
+for (const { sql, ids } of [demo, anadolu])
 for (const [ui, owner] of ids.entries()) {
   const nCust = ui === 0 ? 4 : int(9, 14);
   const custs = [];
@@ -105,5 +122,5 @@ for (const [ui, owner] of ids.entries()) {
   }
 }
 console.log('Demo data ready:', counts);
-console.log('Logins (password demo1234): ' + users.map((u) => u[0]).join(', '));
-await sql.end();
+console.log('Platform: platform@demo.local / platform1234 · company logins (demo1234): ' + users.map((u) => u[0]).join(', ') + ', admin@anadolu.demo, satis@anadolu.demo');
+process.exit(0);
