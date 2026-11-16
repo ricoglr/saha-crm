@@ -10,6 +10,7 @@ import { startSync } from './sync';
 import { SyncBadge } from './components/SyncBadge';
 import { ThemeToggle } from './components/ThemeToggle';
 import { Onboarding } from './components/Onboarding';
+import { WhatsNew } from './components/WhatsNew';
 import { useGuide } from './guide';
 import Login from './pages/Login';
 import Admin from './pages/Admin';
@@ -109,7 +110,7 @@ function Shell() {
         <button onClick={() => setMenu(true)}><Menu size={21} strokeWidth={1.8} />Menü</button>
       </nav>
 
-      {!guide.tourDone && <Onboarding name={user!.name} isAdmin={isAdmin} />}
+      {!guide.tourDone ? <Onboarding name={user!.name} isAdmin={isAdmin} /> : <WhatsNew name={user!.name} />}
 
       {quick && (
         <div className="modal-bg" onClick={() => setQuick(false)}>

@@ -48,6 +48,8 @@ export async function migrate(sql) {
       last_login_at timestamptz,
       last_sync_at timestamptz
     )`;
+  // last "what's new" announcement this user has dismissed (announcements live in the control DB)
+  await sql`alter table users add column if not exists seen_announcement int not null default 0`;
   for (const [table, fields] of Object.entries(TABLES)) {
     const cols = Object.entries(fields).map(([f, t]) => `"${col(f)}" ${t}`).join(',\n      ');
     await sql.unsafe(`

@@ -63,6 +63,24 @@ app.post('/api/me/password', { preHandler: requireUser }, async (req, reply) => 
   return { ok: true };
 });
 
+/* ---------------- what's new ---------------- */
+// ?all=1 -> history (latest 30); otherwise only the ones this user hasn't dismissed yet
+app.get('/api/announcements', { preHandler: requireUser }, async (req) => {
+  const admin = req.user.role === 'admin';
+  const since = req.query.all ? 0 : req.user.seen_announcement || 0;
+  const items = await control`
+    select id, title, body, audience, created_at from announcements
+    where published and id > ${since} and (audience = 'all' or ${admin})
+    order by id desc limit 30`;
+  return { items };
+});
+
+app.post('/api/announcements/seen', { preHandler: requireUser }, async (req) => {
+  const id = Math.max(0, Math.floor(Number(req.body?.id) || 0));
+  await req.sql`update users set seen_announcement = greatest(seen_announcement, ${id}) where id = ${req.user.id}`;
+  return { ok: true };
+});
+
 /* ---------------- sync ---------------- */
 app.post('/api/sync', { preHandler: requireUser }, async (req, reply) => {
   const me = req.user.id;

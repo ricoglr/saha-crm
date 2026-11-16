@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   LayoutDashboard, Building2, ShieldCheck, ScrollText, KeyRound, LogOut, LogIn, Menu, ExternalLink, Plus, Command as Cmd,
-  SunMoon, TerminalSquare, type LucideIcon
+  SunMoon, TerminalSquare, Megaphone, type LucideIcon
 } from 'lucide-react';
 import { api } from '../api';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -12,13 +12,14 @@ import Overview from './Overview';
 import { TenantList } from './Tenants';
 import TenantDetail from './TenantDetail';
 import { Admins, Audit, Account } from './Misc';
+import Announcements from './Announcements';
 
 const NAV: { group: string; items: [string, LucideIcon, string][] }[] = [
-  { group: 'genel', items: [['/', LayoutDashboard, 'Genel bakış'], ['/firmalar', Building2, 'Firmalar']] },
+  { group: 'genel', items: [['/', LayoutDashboard, 'Genel bakış'], ['/firmalar', Building2, 'Firmalar'], ['/duyurular', Megaphone, 'Duyurular']] },
   { group: 'erişim', items: [['/yoneticiler', ShieldCheck, 'Yöneticiler'], ['/kayit', ScrollText, 'İşlem kaydı']] },
   { group: 'hesap', items: [['/hesap', KeyRound, 'Hesabım']] }
 ];
-const CRUMB: Record<string, string> = { '/': 'genel-bakis', '/firmalar': 'firmalar', '/yoneticiler': 'yoneticiler', '/kayit': 'islem-kaydi', '/hesap': 'hesap' };
+const CRUMB: Record<string, string> = { '/': 'genel-bakis', '/firmalar': 'firmalar', '/yoneticiler': 'yoneticiler', '/kayit': 'islem-kaydi', '/hesap': 'hesap', '/duyurular': 'duyurular' };
 
 function Login({ onLogin }: { onLogin: (a: Admin) => void }) {
   const [email, setEmail] = useState('');
@@ -84,6 +85,7 @@ export default function PlatformApp() {
   else if (route === '/yoneticiler') page = <Admins me={admin} />;
   else if (route === '/kayit') page = <Audit />;
   else if (route === '/hesap') page = <Account admin={admin} />;
+  else if (route === '/duyurular') page = <Announcements />;
   else page = <Overview />;
   const crumbs = m ? ['firmalar', m[1].slice(0, 8)] : [CRUMB[route] || route.slice(1)];
 

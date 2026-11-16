@@ -59,6 +59,31 @@ export async function initControl() {
       action text not null, target text, details jsonb
     )`;
 
+  await control`
+    create table if not exists announcements (
+      id serial primary key,
+      title text not null,
+      body text not null,
+      audience text not null default 'all' check (audience in ('all', 'admins')),
+      published boolean not null default true,
+      created_by text,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    )`;
+  const [{ c }] = await control`select count(*)::int as c from announcements`;
+  if (c === 0) {
+    await control`insert into announcements (title, body, audience, created_by) values
+      ('Uygulamamız yenilendi!', ${`Sizden gelen geri bildirimlerle Saha CRM'e birkaç güzel yenilik ekledik:
+- **Açık / koyu tema:** Gözünüzü yormayan koyu temaya menünün altındaki simgeden ya da Ayarlar'dan geçebilirsiniz.
+- **Kısa tanıtım ve ipuçları:** Sayfalarda küçük ipucu kutuları var. Tanıtım turunu Ayarlar'dan tekrar izleyebilirsiniz.
+- **Firma adınız** artık sol üst köşede görünüyor.
+- **Daha hızlı açılış:** Uygulama yüklenirken boş ekran yerine açılış ekranı görünüyor.
+İyi satışlar dileriz!`}, 'all', 'system'),
+      ('Yöneticiler için yenilikler', ${`Ekibinizi yönetmeyi kolaylaştıran iki yenilik:
+- **Kullanıcıyı kalıcı silme:** Yönetim > Kullanıcılar'da kullanıcıya tıklayıp "Sil" ile silebilirsiniz.
+- **Kayıt aktarma:** Ayrılan bir satışçının müşteri, görüşme ve tekliflerini silmeden başka bir kullanıcıya aktarabilirsiniz.`}, 'admins', 'system')`;
+  }
+
   // First start after upgrading: the existing single-company database becomes the first tenant.
   const [{ n }] = await control`select count(*)::int as n from tenants`;
   if (n === 0 && BASE_DB !== CONTROL_DB) {
@@ -124,6 +149,9 @@ export async function createTenantUser(t, { email, name, role, password }, { ign
   const [u] = await sql`
     insert into users (email, name, role, password_hash)
     values (${email}, ${name}, ${role === 'admin' ? 'admin' : 'rep'}, ${await hashPassword(password)}) returning *`;
+  // new users start "caught up": they get the welcome tour, not old release notes
+  const [{ m }] = await control`select coalesce(max(id), 0)::int as m from announcements`;
+  await sql`update users set seen_announcement = ${m} where id = ${u.id}`;
   try {
     await control`insert into accounts (email, tenant_id, user_id) values (${email}, ${t.id}, ${u.id})`;
   } catch (e) {

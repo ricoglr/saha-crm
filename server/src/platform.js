@@ -240,6 +240,41 @@ export default async function platformRoutes(app) {
     return { ok: true };
   });
 
+  /* ---------- announcements ("what's new" popups in the sales app) ---------- */
+  const annBody = (b) => {
+    const title = String(b.title || '').trim();
+    const body = String(b.body || '').trim();
+    if (!title || !body) throw new HttpError('Başlık ve metin gerekli.');
+    if (title.length > 120 || body.length > 4000) throw new HttpError('Duyuru çok uzun.');
+    return { title, body, audience: b.audience === 'admins' ? 'admins' : 'all', published: b.published !== false };
+  };
+
+  app.get('/announcements', async () => ({
+    announcements: await control`select * from announcements order by id desc`
+  }));
+
+  app.post('/announcements', async (req) => {
+    const v = annBody(req.body || {});
+    const [a] = await control`insert into announcements ${control({ ...v, created_by: req.admin.email })} returning *`;
+    await audit(req, 'announcement.create', `#${a.id}`, { title: a.title, audience: a.audience, published: a.published });
+    return { announcement: a };
+  });
+
+  app.patch('/announcements/:id', async (req) => {
+    const v = annBody(req.body || {});
+    const [a] = await control`update announcements set ${control(v)}, updated_at = now() where id = ${Number(req.params.id)} returning *`;
+    if (!a) throw new HttpError('Duyuru bulunamadı.', 404);
+    await audit(req, 'announcement.update', `#${a.id}`, { title: a.title, published: a.published });
+    return { announcement: a };
+  });
+
+  app.post('/announcements/:id/delete', async (req) => {
+    const [a] = await control`delete from announcements where id = ${Number(req.params.id)} returning *`;
+    if (!a) throw new HttpError('Duyuru bulunamadı.', 404);
+    await audit(req, 'announcement.delete', `#${a.id}`, { title: a.title });
+    return { ok: true };
+  });
+
   /* ---------- audit ---------- */
   app.get('/audit', async (req) => {
     const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 200));

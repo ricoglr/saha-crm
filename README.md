@@ -87,6 +87,7 @@ A separate app with its own login, used only by the provider's technical staff.
 | **Limits & support** | Per-company active-user limit, enforced when the company admin invites users. Reset a company user's password, add, deactivate or permanently delete users. |
 | **Monitoring** | Per company: active users, customers, visits, quotes, database size, last activity. Platform totals and API health. |
 | **Backups** | One-click JSON export of a company's whole database. |
+| **Announcements** | Write release notes (“what's new”) with a live preview, for all users or company admins only. Published notes pop up once in the sales app; dismissal is stored on the server, so users don't see them again on other devices, and new users start caught up. No redeploy needed. |
 | **Governance** | Multiple platform admins, plus an **audit log** of every platform action (who, what, which company, IP), shown as a searchable terminal-style log. |
 | **Developer UX** | **⌘K / Ctrl+K command palette** (jump to any page or company, run actions), live API health with round-trip time, copyable ids, raw `tenant.json` view, monospace developer-tool styling. |
 
@@ -97,6 +98,7 @@ A separate app with its own login, used only by the provider's technical staff.
 - **Light / dark / system theme** switch in both apps (sidebar, login screen and Settings). The choice is remembered and applied before first paint, so there is no flash of the wrong theme.
 - **Guided onboarding**: a short welcome tour on first sign-in that adapts to the role (extra step for admins) and the device (iOS install steps, or Chrome's native install prompt on Android and desktop), plus dismissible tips on each page. Both can be replayed or turned off in Settings.
 - **Splash screen** while the app loads, so the screen is never blank.
+- **“What's new” popup**: a friendly, one-time release-notes dialog driven by announcements published from the platform console; past notes stay available under Settings.
 
 ## Screenshots
 
@@ -144,6 +146,7 @@ A separate app with its own login, used only by the provider's technical staff.
 | ![Dark theme](docs/screenshots/desktop-dashboard-dark.jpg) | |
 | <img src="docs/screenshots/phone-quotes.jpg" width="320" /> | <img src="docs/screenshots/phone-menu.jpg" width="320" /> |
 | <img src="docs/screenshots/phone-onboarding.jpg" width="320" /> | <img src="docs/screenshots/phone-tip.jpg" width="320" /> |
+| <img src="docs/screenshots/phone-whats-new.jpg" width="320" /> | ![Announcement editor](docs/screenshots/platform-announcement.jpg) |
 
 </details>
 
@@ -306,6 +309,8 @@ For a fresh server without a reverse proxy, the root [`docker-compose.yml`](dock
 | `GET` | `/api/me` | user | Current user |
 | `POST` | `/api/me/password` | user | Change own password (signs out other devices) |
 | `POST` | `/api/sync` | user | Push `{ since, changes[] }`, receive `{ rev, changes }` |
+| `GET` | `/api/announcements[?all=1]` | user | Unseen (or all) announcements for the user's role |
+| `POST` | `/api/announcements/seen` | user | Mark announcements up to `{ id }` as seen |
 | `GET` | `/api/admin/users` | admin | List users with activity counts |
 | `POST` | `/api/admin/users` | admin | Create user |
 | `PATCH` | `/api/admin/users/:id` | admin | Update name, email, role, active flag or password |
@@ -328,6 +333,7 @@ For a fresh server without a reverse proxy, the root [`docker-compose.yml`](dock
 | `GET` | `/tenants/:id/export` | JSON backup of the company database |
 | `POST` | `/tenants/:id/delete` | Drop the company (needs typed company code + password) |
 | `GET` / `POST` / `PATCH` | `/admins[/:id]`, `POST /admins/:id/delete` | Platform admins |
+| `GET` / `POST` / `PATCH` | `/announcements[/:id]`, `POST /announcements/:id/delete` | “What's new” announcements |
 | `GET` | `/audit` | Audit log |
 
 ## Project structure
@@ -372,6 +378,7 @@ For a fresh server without a reverse proxy, the root [`docker-compose.yml`](dock
 - **Satış temsilcisi için:** müşteriler ve gruplar, saha ziyaretleri ve telefon görüşmeleri, "beni ziyarete gelenler", fiyat teklifleri ve **teklifin neden tutmadığı**, Konya'nın 31 ilçesi ve diğer illerde ziyaret kapsamı, yeni projeler, barter teklifleri, takip tarihleri, Excel'e aktarma.
 - **Yeni kullanıcılar için:** ilk girişte kısa tanıtım turu (telefona kurma adımları dahil) ve her sayfada kapatılabilir ipuçları.
 - **Her iki uygulamada açık / koyu / sistem teması** seçimi.
+- **“Yenilikler” penceresi:** platform panelinden yazılan duyurular kullanıcılara bir kez, samimi bir pencereyle gösterilir.
 - **Yazılım sağlayıcısı için (platform paneli, `/platform`, ⌘K komut paleti ile):** yeni firma oluşturma (her firmaya ayrı veritabanı), askıya alma, silme, kullanıcı limiti, firma kullanıcılarının şifresini sıfırlama, yedek indirme, platform yöneticileri ve işlem kaydı.
 - **Yönetici için:** satışçı bazında performans (görüşme, teklif, tutma oranı), ekip genelinde tutmama nedenleri, tüm kayıtları filtreleyip arama, kullanıcı ekleme, şifre sıfırlama, devre dışı bırakma ve kalıcı silme (kayıtlarını başka kullanıcıya aktararak veya birlikte silerek).
 - **Teknik:** React + TypeScript PWA, IndexedDB ile çevrimdışı çalışma ve otomatik eşitleme, Node.js (Fastify) + PostgreSQL API, httpOnly çerezli JWT oturumları, Docker ile canlı ortam.

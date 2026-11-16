@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { RefreshCw, LogOut, KeyRound, Download, Upload, FileSpreadsheet, Smartphone, UserRound, DatabaseZap, Lightbulb, PlayCircle, Palette } from 'lucide-react';
+import { RefreshCw, LogOut, KeyRound, Download, Upload, FileSpreadsheet, Smartphone, UserRound, DatabaseZap, Lightbulb, PlayCircle, Palette, Sparkles } from 'lucide-react';
 import { useGuide, replayTour, resetTips, setTipsOff, useInstallPrompt, promptInstall, isInstalled } from '../guide';
 import { db, exportAll, importBackup, readLegacyData, deleteLegacyData, today } from '../db';
 import { useAuth } from '../auth';
@@ -8,6 +8,7 @@ import { api } from '../api';
 import { syncNow, useSyncState } from '../sync';
 import { go } from '../router';
 import { ThemeSegment } from '../components/ThemeToggle';
+import { WhatsNewHistory } from '../components/WhatsNew';
 import { VISIT_KINDS, QUOTE_STATUS, PROJECT_STAGES, BARTER_STATUS, CUSTOMER_STATUS } from '../constants';
 import { Field } from '../components/ui';
 
@@ -77,6 +78,7 @@ export default function Settings() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [legacy, setLegacy] = useState<{ data: any; count: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [news, setNews] = useState(false);
   const [pw, setPw] = useState({ current: '', next: '', again: '' });
   useEffect(() => { readLegacyData().then(setLegacy); }, []);
 
@@ -121,6 +123,7 @@ export default function Settings() {
     <div className="page narrow">
       <div className="page-head"><h1>Ayarlar</h1></div>
       {msg && <div className={msg.ok ? 'notice' : 'notice bad'}>{msg.text}</div>}
+      {news && <WhatsNewHistory onClose={() => setNews(false)} />}
 
       {legacy && (
         <section className="card highlight">
@@ -191,9 +194,10 @@ export default function Settings() {
       </section>
 
       <section className="card">
-        <h3><Lightbulb size={14} /> Tanıtım ve ipuçları</h3>
+        <h3><Lightbulb size={14} /> Yenilikler, tanıtım ve ipuçları</h3>
         <p className="muted">İlk girişteki tanıtım turunu tekrar izleyebilir, sayfalardaki ipucu kutularını yeniden açabilir veya tamamen kapatabilirsiniz.</p>
         <div className="actions">
+          <button className="btn" onClick={() => setNews(true)}><Sparkles size={15} /> Yenilikler</button>
           <button className="btn" onClick={() => { replayTour(); go('/'); }}><PlayCircle size={15} /> Tanıtımı tekrar göster</button>
           <button className="btn" onClick={() => { resetTips(); setMsg({ ok: true, text: 'İpuçları yeniden gösterilecek.' }); }}><Lightbulb size={15} /> İpuçlarını yeniden göster</button>
           {!guide.tipsOff && <button className="btn ghost" onClick={() => { setTipsOff(true); setMsg({ ok: true, text: 'İpuçları kapatıldı.' }); }}>İpuçlarını kapat</button>}

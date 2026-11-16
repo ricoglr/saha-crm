@@ -389,3 +389,24 @@ a.stat:hover { border-color: var(--primary); }
 .del-target { margin: -2px 0 2px 28px; }
 .btn.danger:not(.ghost) { background: var(--red); border-color: var(--red); color: #fff; }
 .btn.danger:disabled { opacity: .5; }
+
+/* ---------- what's new ---------- */
+.wn { position: relative; width: min(500px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--card); border-radius: 14px; padding: 26px 22px 16px; box-shadow: 0 24px 60px rgba(0,0,0,.3); animation: pop .25s ease-out; }
+.wn-head { text-align: center; margin-bottom: 14px; }
+.wn-head h2 { font-size: 19px; margin: 0 0 4px; }
+.wn-head p { margin: 0; font-size: 13.5px; }
+.wn-ic { width: 60px; height: 60px; margin: 0 auto 12px; border-radius: 16px; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--accent) 80%, var(--primary))); box-shadow: 0 8px 20px color-mix(in srgb, var(--primary) 30%, transparent); }
+.wn-list { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin: 0 -4px 14px; padding: 0 4px; }
+.wn-list.flat { margin: 0; padding: 0; }
+.wn-item { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: color-mix(in srgb, var(--primary-soft) 35%, var(--card)); }
+.wn-title { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.wn-title b { font-size: 14.5px; }
+.wn-title span { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.ann-body { font-size: 13.5px; line-height: 1.55; color: var(--text); }
+.ann-body p { margin: 0 0 6px; }
+.ann-body ul { margin: 0 0 6px; padding-left: 18px; }
+.ann-body li { margin: 3px 0; }
+.ann-body li::marker { color: var(--primary); }
+.ann-body > :last-child { margin-bottom: 0; }
+@media (max-width: 560px) { .wn { padding: 22px 16px 14px; } }

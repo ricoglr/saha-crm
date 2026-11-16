@@ -177,3 +177,11 @@ kbd { font-family: var(--mono); font-size: 10.5px; border: 1px solid var(--line)
 
 .btn.xs.ic.danger { background: transparent; color: var(--red); border-color: var(--line); }
 .btn.xs.ic.danger:hover { border-color: var(--red); background: var(--red-bg); }
+
+/* announcements */
+.ann-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
+.ann-card.draft { border-style: dashed; opacity: .85; }
+.ann-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.platform h3.ann-h { text-transform: none; font-size: 15px; color: var(--text); margin: 0 0 6px; font-family: inherit; }
+.platform .wn-item { background: var(--bg); }
+@media (max-width: 560px) { .ann-grid { grid-template-columns: 1fr; } }
