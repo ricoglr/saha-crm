@@ -376,3 +376,16 @@ a.stat:hover { border-color: var(--primary); }
 .login { position: relative; }
 .login-theme { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; color: #fff; background: rgba(255,255,255,.08); }
 .login-theme:hover { background: rgba(255,255,255,.16); }
+
+/* ---------- delete user dialog ---------- */
+.del-choice { display: flex; flex-direction: column; gap: 8px; }
+.del-choice label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.del-choice label.on { border-color: var(--primary); background: var(--primary-soft); }
+.del-choice label.on.danger { border-color: var(--red); background: var(--red-bg); }
+.del-choice input { width: auto; min-height: 0; margin-top: 3px; }
+.del-choice span { display: flex; flex-direction: column; gap: 2px; }
+.del-choice b { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; }
+.del-choice small { color: var(--muted); font-size: 12px; }
+.del-target { margin: -2px 0 2px 28px; }
+.btn.danger:not(.ghost) { background: var(--red); border-color: var(--red); color: #fff; }
+.btn.danger:disabled { opacity: .5; }

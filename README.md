@@ -75,6 +75,7 @@ Field sales reps at a steel trading company in Konya, Türkiye drive to construc
 | **Team overview** | Per-rep KPIs for a chosen period: customers, visits (field / walk-in), quotes, won/lost, **win rate**, pending quotes, open projects, last visit and last sync. Team-wide loss reasons, quotes by product, most-visited cities. |
 | **All records** | Browse every rep's customers, visits, quotes, projects and barter offers. Filter by rep, date range and free-text search. Detail view and Excel export. |
 | **User management** | Create accounts with a generated initial password, reset passwords, promote to admin, deactivate. Deactivation **signs the user out on every device** immediately; their records stay in reports. |
+| **Permanent deletion** | Delete a user from the database after typing their e-mail to confirm. Their customers, visits, quotes, projects and barter offers are either **moved to another user** (e.g. when a rep leaves) or deleted with them. Moved rows get a new revision, so the new owner's devices pull them on the next sync. You can't delete yourself or a company's last admin. |
 
 ### For the software provider (platform console at `/platform`)
 A separate app with its own login, used only by the provider's technical staff.
@@ -83,7 +84,7 @@ A separate app with its own login, used only by the provider's technical staff.
 |---|---|
 | **Companies** | Create a company in one step: its **own PostgreSQL database** is created and migrated, and its first admin account is generated. Edit name, plan, contact details and notes. |
 | **Lifecycle** | **Suspend** a company (all its users are signed out at once and can't log in; data is kept), reactivate it, or **delete** it permanently (typed confirmation plus password; drops the database). |
-| **Limits & support** | Per-company active-user limit, enforced when the company admin invites users. Reset a company user's password, add or deactivate users. |
+| **Limits & support** | Per-company active-user limit, enforced when the company admin invites users. Reset a company user's password, add, deactivate or permanently delete users. |
 | **Monitoring** | Per company: active users, customers, visits, quotes, database size, last activity. Platform totals and API health. |
 | **Backups** | One-click JSON export of a company's whole database. |
 | **Governance** | Multiple platform admins, plus an **audit log** of every platform action (who, what, which company, IP), shown as a searchable terminal-style log. |
@@ -308,6 +309,7 @@ For a fresh server without a reverse proxy, the root [`docker-compose.yml`](dock
 | `GET` | `/api/admin/users` | admin | List users with activity counts |
 | `POST` | `/api/admin/users` | admin | Create user |
 | `PATCH` | `/api/admin/users/:id` | admin | Update name, email, role, active flag or password |
+| `POST` | `/api/admin/users/:id/delete` | admin | Permanently delete a user `{ confirm: email, transferTo?: userId }` |
 | `GET` | `/api/admin/overview?from&to` | admin | Team KPIs, loss reasons, products, cities |
 | `GET` | `/api/admin/records/:table?owner&q&from&to` | admin | Search any collection across the team |
 | `GET` | `/api/health` | — | Liveness and database check |
@@ -322,9 +324,10 @@ For a fresh server without a reverse proxy, the root [`docker-compose.yml`](dock
 | `GET` / `POST` | `/tenants` | List companies with usage / create company + database + first admin |
 | `GET` / `PATCH` | `/tenants/:id` | Detail (usage, users, history) / edit, suspend, activate, set user limit |
 | `POST` / `PATCH` | `/tenants/:id/users[/:uid]` | Add a company user / reset password, (de)activate, change role |
+| `POST` | `/tenants/:id/users/:uid/delete` | Permanently delete a company user (move or delete their records) |
 | `GET` | `/tenants/:id/export` | JSON backup of the company database |
 | `POST` | `/tenants/:id/delete` | Drop the company (needs typed company code + password) |
-| `GET` / `POST` / `PATCH` | `/admins[/:id]` | Platform admins |
+| `GET` / `POST` / `PATCH` | `/admins[/:id]`, `POST /admins/:id/delete` | Platform admins |
 | `GET` | `/audit` | Audit log |
 
 ## Project structure
@@ -370,7 +373,7 @@ For a fresh server without a reverse proxy, the root [`docker-compose.yml`](dock
 - **Yeni kullanıcılar için:** ilk girişte kısa tanıtım turu (telefona kurma adımları dahil) ve her sayfada kapatılabilir ipuçları.
 - **Her iki uygulamada açık / koyu / sistem teması** seçimi.
 - **Yazılım sağlayıcısı için (platform paneli, `/platform`, ⌘K komut paleti ile):** yeni firma oluşturma (her firmaya ayrı veritabanı), askıya alma, silme, kullanıcı limiti, firma kullanıcılarının şifresini sıfırlama, yedek indirme, platform yöneticileri ve işlem kaydı.
-- **Yönetici için:** satışçı bazında performans (görüşme, teklif, tutma oranı), ekip genelinde tutmama nedenleri, tüm kayıtları filtreleyip arama, kullanıcı ekleme, şifre sıfırlama ve devre dışı bırakma.
+- **Yönetici için:** satışçı bazında performans (görüşme, teklif, tutma oranı), ekip genelinde tutmama nedenleri, tüm kayıtları filtreleyip arama, kullanıcı ekleme, şifre sıfırlama, devre dışı bırakma ve kalıcı silme (kayıtlarını başka kullanıcıya aktararak veya birlikte silerek).
 - **Teknik:** React + TypeScript PWA, IndexedDB ile çevrimdışı çalışma ve otomatik eşitleme, Node.js (Fastify) + PostgreSQL API, httpOnly çerezli JWT oturumları, Docker ile canlı ortam.
 
 Telefona kurmak için iPhone'da **Paylaş → Ana Ekrana Ekle**, Android'de **⋮ → Uygulamayı yükle** adımlarını izleyin.

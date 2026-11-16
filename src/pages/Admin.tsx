@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Download, UserPlus, KeyRound, Search } from 'lucide-react';
+import { RefreshCw, Download, UserPlus, KeyRound, Search, Trash2 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { Badge, Chips, Empty, Field, Modal, Select } from '../components/ui';
+import { DeleteUserModal } from '../components/DeleteUserModal';
 import { Bar } from './Dashboard';
 import {
   VISIT_KINDS, QUOTE_STATUS, PROJECT_STAGES, BARTER_STATUS, CUSTOMER_STATUS
@@ -268,8 +269,11 @@ function genPassword() {
 function Users({ users, reload }: { users: AdminUser[]; reload: () => void }) {
   const { user: me } = useAuth();
   const [edit, setEdit] = useState<Partial<AdminUser> | null>(null);
+  const [deleting, setDeleting] = useState<AdminUser | null>(null);
+  const [msg, setMsg] = useState('');
   return (
     <>
+      {msg && <div className="notice">{msg}</div>}
       <div className="filters"><span className="grow" /><button className="btn primary" onClick={() => setEdit({ role: 'rep', active: true })}><UserPlus size={16} /> Yeni kullanıcı</button></div>
       <section className="card flush">
         <div className="table-wrap">
@@ -291,13 +295,16 @@ function Users({ users, reload }: { users: AdminUser[]; reload: () => void }) {
           </table>
         </div>
       </section>
-      <p className="muted small">Devre dışı bırakılan kullanıcı tüm cihazlarda oturumdan çıkarılır; kayıtları silinmez, raporlarda görünmeye devam eder.</p>
-      {edit && <UserForm initial={edit} isSelf={edit.id === me?.id} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload(); }} />}
+      <p className="muted small">Devre dışı bırakılan kullanıcı tüm cihazlarda oturumdan çıkarılır; kayıtları silinmez, raporlarda görünmeye devam eder. Kalıcı silmek için kullanıcıya tıklayıp <b>Sil</b>’i seçin; kayıtlarını başka bir kullanıcıya aktarabilirsiniz.</p>
+      {edit && <UserForm initial={edit} isSelf={edit.id === me?.id} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload(); }}
+        onDelete={() => { setDeleting(edit as AdminUser); setEdit(null); }} />}
+      {deleting && <DeleteUserModal user={deleting} candidates={users} defaultTarget={me?.id} endpoint={`/api/admin/users/${deleting.id}/delete`}
+        onClose={() => setDeleting(null)} onDeleted={(m) => { setDeleting(null); setMsg(m); reload(); }} />}
     </>
   );
 }
 
-function UserForm({ initial, isSelf, onClose, onSaved }: { initial: Partial<AdminUser>; isSelf: boolean; onClose: () => void; onSaved: () => void }) {
+function UserForm({ initial, isSelf, onClose, onSaved, onDelete }: { initial: Partial<AdminUser>; isSelf: boolean; onClose: () => void; onSaved: () => void; onDelete: () => void }) {
   const isNew = !initial.id;
   const [v, setV] = useState({ name: initial.name || '', email: initial.email || '', role: initial.role || 'rep', active: initial.active ?? true, password: '' });
   const [err, setErr] = useState('');
@@ -322,7 +329,7 @@ function UserForm({ initial, isSelf, onClose, onSaved }: { initial: Partial<Admi
   }
   return (
     <Modal title={isNew ? 'Yeni kullanıcı' : 'Kullanıcıyı düzenle'} onClose={onClose}
-      footer={<><span className="grow" /><button type="button" className="btn ghost" onClick={onClose}>Vazgeç</button><button form="user-form" className="btn primary" disabled={busy}>Kaydet</button></>}>
+      footer={<>{!isNew && !isSelf && <button type="button" className="btn danger ghost" onClick={onDelete}><Trash2 size={15} /> Sil</button>}<span className="grow" /><button type="button" className="btn ghost" onClick={onClose}>Vazgeç</button><button form="user-form" className="btn primary" disabled={busy}>Kaydet</button></>}>
       <form id="user-form" className="grid" onSubmit={submit}>
         <Field label="Ad soyad *"><input value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} autoFocus /></Field>
         <Field label="E-posta *"><input type="email" value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} /></Field>

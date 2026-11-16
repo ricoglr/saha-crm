@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, Pencil, PauseCircle, PlayCircle, Download, Trash2, UserPlus, KeyRound, Braces, Power, PowerOff } from 'lucide-react';
+import { DeleteUserModal } from '../components/DeleteUserModal';
 import { api } from '../api';
 import { Badge, Empty, Field, Modal, Select } from '../components/primitives';
 import { num, relDays } from '../format';
@@ -7,7 +8,7 @@ import { bytes, dt, genPassword, useLoad, type LogEntry, type Tenant, type Usage
 import { Credentials, StatusBadge } from './Tenants';
 import { IdChip, Terminal } from './ui';
 
-type TUser = { id: string; email: string; name: string; role: 'admin' | 'rep'; active: boolean; created_at: string; last_login_at?: string; last_sync_at?: string };
+type TUser = { id: string; email: string; name: string; role: 'admin' | 'rep'; active: boolean; created_at: string; last_login_at?: string; last_sync_at?: string; customers: number; visits: number };
 type Detail = { tenant: Tenant; usage: Usage; users: TUser[]; log: LogEntry[] };
 
 export default function TenantDetail({ id }: { id: string }) {
@@ -17,6 +18,7 @@ export default function TenantDetail({ id }: { id: string }) {
   const [adding, setAdding] = useState(false);
   const [creds, setCreds] = useState<{ who: string; email: string; password: string } | null>(null);
   const [msg, setMsg] = useState('');
+  const [delUser, setDelUser] = useState<TUser | null>(null);
   if (err) return <div className="page"><a href="#/firmalar" className="back"><ChevronLeft size={16} /> Firmalar</a><div className="notice bad">{err}</div></div>;
   if (!data) return null;
   const { tenant: t, usage: u, users } = data;
@@ -66,18 +68,20 @@ export default function TenantDetail({ id }: { id: string }) {
         <div className="page-head pad-h"><h3 style={{ margin: 0 }}>Kullanıcılar</h3><button className="btn sm" onClick={() => setAdding(true)}><UserPlus size={14} /> Yönetici ekle</button></div>
         <div className="table-wrap" style={{ marginTop: 10 }}>
           <table className="table">
-            <thead><tr><th>Ad</th><th>E-posta</th><th>Yetki</th><th>Durum</th><th>Son giriş</th><th className="n">işlem</th></tr></thead>
+            <thead><tr><th>Ad</th><th>E-posta</th><th>Yetki</th><th>Durum</th><th className="n">Müşteri</th><th className="n">Görüşme</th><th>Son giriş</th><th className="n">işlem</th></tr></thead>
             <tbody>
               {users.map((x) => (
                 <tr key={x.id} className={x.active ? '' : 'dim'}>
                   <td><b>{x.name}</b><div><IdChip value={x.id} /></div></td><td><code className="code">{x.email}</code></td>
                   <td>{x.role === 'admin' ? <Badge tone="blue">Yönetici</Badge> : 'Satışçı'}</td>
                   <td>{x.active ? <Badge tone="green">Aktif</Badge> : <Badge>Devre dışı</Badge>}</td>
+                  <td className="n">{x.customers}</td><td className="n">{x.visits}</td>
                   <td>{x.last_login_at ? relDays(x.last_login_at) : 'hiç'}</td>
                   <td><div className="row-actions">
                     <button className="btn xs ic" onClick={() => resetPw(x)} title="Şifre sıfırla" aria-label="Şifre sıfırla"><KeyRound size={13} /></button>
                     <button className="btn xs ic" onClick={() => act(() => api(`/api/platform/tenants/${t.id}/users/${x.id}`, { active: !x.active }, 'PATCH'))}
                       title={x.active ? 'Devre dışı bırak' : 'Aktifleştir'} aria-label={x.active ? 'Devre dışı bırak' : 'Aktifleştir'}>{x.active ? <PowerOff size={13} /> : <Power size={13} />}</button>
+                    <button className="btn xs ic danger" onClick={() => setDelUser(x)} title="Kalıcı olarak sil" aria-label="Kalıcı olarak sil"><Trash2 size={13} /></button>
                   </div></td>
                 </tr>
               ))}
@@ -115,6 +119,8 @@ export default function TenantDetail({ id }: { id: string }) {
       {editing && <EditTenant t={t} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); reload(); }} />}
       {adding && <AddAdmin t={t} onClose={() => setAdding(false)} onCreated={(c) => { setAdding(false); setCreds(c); reload(); }} />}
       {deleting && <DeleteTenant t={t} onClose={() => setDeleting(false)} />}
+      {delUser && <DeleteUserModal user={delUser} candidates={users.filter((x) => x.active)} defaultTarget={users.find((x) => x.role === 'admin' && x.id !== delUser.id && x.active)?.id}
+        endpoint={`/api/platform/tenants/${t.id}/users/${delUser.id}/delete`} onClose={() => setDelUser(null)} onDeleted={(m) => { setDelUser(null); setMsg(m); reload(); }} />}
       {creds && <Credentials title="Giriş bilgileri" who={creds.who} email={creds.email} password={creds.password} onClose={() => setCreds(null)} />}
     </div>
   );

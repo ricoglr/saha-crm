@@ -5,7 +5,7 @@ import {
   hashPassword, checkPassword, validatePassword, setSession, clearSession, publicUser, requireUser, requireAdmin,
   tooManyAttempts, noteFailure, clearFailures
 } from './auth.js';
-import { initControl, control, tenantForEmail, tenantSql, createTenantUser, updateTenantUser, normEmail } from './tenants.js';
+import { initControl, control, tenantForEmail, tenantSql, createTenantUser, updateTenantUser, deleteTenantUser, audit, normEmail, HttpError } from './tenants.js';
 import platformRoutes from './platform.js';
 
 const app = Fastify({ trustProxy: true, bodyLimit: 25 * 1024 * 1024, logger: { level: process.env.LOG_LEVEL || 'warn' } });
@@ -126,6 +126,15 @@ app.patch('/api/admin/users/:id', { preHandler: requireAdmin }, async (req, repl
   const u = await updateTenantUser(req.tenant, req.params.id, req.body || {}, { selfId: req.user.id });
   if (u.id === req.user.id && u._bumped) setSession(reply, u, req.tenant.id);
   return { user: publicUser(u) };
+});
+
+app.post('/api/admin/users/:id/delete', { preHandler: requireAdmin }, async (req) => {
+  const [u] = await req.sql`select email from users where id = ${req.params.id}`;
+  if (!u) throw new HttpError('Kullanıcı bulunamadı.', 404);
+  if (normEmail(req.body?.confirm) !== u.email) throw new HttpError('Onay için kullanıcının e-postasını aynen yazın.');
+  const r = await deleteTenantUser(req.tenant, req.params.id, { transferTo: req.body?.transferTo || null, selfId: req.user.id });
+  await audit(req, 'user.delete', req.tenant.slug, { email: r.user.email, by: 'firma yöneticisi', records: r.transferredTo ? `aktarıldı → ${r.transferredTo.email}` : 'silindi', ...r.counts });
+  return { ok: true, counts: r.counts, transferredTo: r.transferredTo };
 });
 
 app.get('/api/admin/overview', { preHandler: requireAdmin }, async (req) => {

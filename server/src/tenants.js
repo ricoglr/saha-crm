@@ -1,5 +1,5 @@
 import { connect, BASE_DB, CONTROL_DB } from './db.js';
-import { migrate } from './schema.js';
+import { migrate, TABLES } from './schema.js';
 import { hashPassword, validatePassword } from './auth.js';
 
 /** Platform registry database (companies, login directory, platform admins, audit log). */
@@ -177,6 +177,54 @@ export async function updateTenantUser(t, id, b, { selfId } = {}) {
   return { ...updated, _bumped: bump };
 }
 
+/** Counts of a user's (non-deleted) records, per collection. */
+export async function userRecordCounts(t, id) {
+  const sql = tenantSql(t);
+  const out = {};
+  for (const table of Object.keys(TABLES)) {
+    const [{ n }] = await sql`select count(*)::int as n from ${sql(table)} where owner_id = ${id} and not deleted`;
+    out[table] = n;
+  }
+  return out;
+}
+
+/**
+ * Permanently deletes a company user. Their records are either moved to another user of the same
+ * company (transferTo) or deleted with them. Moved rows get a new rev so the new owner's devices pull them.
+ */
+export async function deleteTenantUser(t, id, { transferTo = null, selfId = null } = {}) {
+  const sql = tenantSql(t);
+  const [u] = await sql`select * from users where id = ${id}`;
+  if (!u) throw new HttpError('Kullanıcı bulunamadı.', 404);
+  if (id === selfId) throw new HttpError('Kendi hesabınızı silemezsiniz.');
+  if (u.role === 'admin') {
+    const [{ n }] = await sql`select count(*)::int as n from users where role = 'admin' and active and id <> ${id}`;
+    if (n === 0) throw new HttpError('Firmada en az bir aktif yönetici kalmalı. Önce başka bir kullanıcıyı yönetici yapın.');
+  }
+  let target = null;
+  if (transferTo) {
+    if (transferTo === id) throw new HttpError('Kayıtlar silinen kullanıcının kendisine aktarılamaz.');
+    [target] = await sql`select * from users where id = ${transferTo}`;
+    if (!target) throw new HttpError('Kayıtların aktarılacağı kullanıcı bulunamadı.');
+  }
+  const counts = await userRecordCounts(t, id);
+  await sql.begin(async (tx) => {
+    for (const table of Object.keys(TABLES)) {
+      if (target) {
+        // ids are UUIDs (regions: "İl|İlçe" keys) — if the new owner already has the same key, theirs wins
+        await tx`
+          update ${tx(table)} s set owner_id = ${target.id}, rev = nextval('rev_seq'), updated_at = now()
+          where s.owner_id = ${id} and not s.deleted
+            and not exists (select 1 from ${tx(table)} x where x.owner_id = ${target.id} and x.id = s.id)`;
+      }
+      await tx`delete from ${tx(table)} where owner_id = ${id}`;
+    }
+    await tx`delete from users where id = ${id}`;
+  });
+  await control`delete from accounts where email = ${u.email} and tenant_id = ${t.id}`;
+  return { user: u, counts, transferredTo: target ? { id: target.id, email: target.email, name: target.name } : null };
+}
+
 /* ---------- companies ---------- */
 
 export async function createTenant({ slug, name, plan, maxUsers, contactName, contactEmail, contactPhone, notes }, admin) {
@@ -224,7 +272,7 @@ export async function dropTenant(t) {
 }
 
 export async function audit(req, action, target, details) {
-  const a = req.admin;
+  const a = req.admin || req.user; // platform admin, or a company admin acting inside their company
   await control`
     insert into audit_log (actor_id, actor_email, ip, action, target, details)
     values (${a?.id || null}, ${a?.email || null}, ${req.ip}, ${action}, ${target || null}, ${details ? control.json(details) : null})`;

@@ -12,7 +12,8 @@ export const ACTIONS: Record<string, string> = {
   login: 'Platforma giriş', 'tenant.create': 'Firma oluşturuldu', 'tenant.update': 'Firma bilgileri güncellendi',
   'tenant.suspend': 'Firma askıya alındı', 'tenant.activate': 'Firma aktifleştirildi', 'tenant.export': 'Yedek indirildi',
   'tenant.delete': 'Firma silindi', 'user.create': 'Firma kullanıcısı eklendi', 'user.update': 'Firma kullanıcısı güncellendi',
-  'admin.create': 'Platform yöneticisi eklendi', 'admin.update': 'Platform yöneticisi güncellendi', 'password.change': 'Şifre değiştirildi'
+  'admin.create': 'Platform yöneticisi eklendi', 'admin.update': 'Platform yöneticisi güncellendi', 'admin.delete': 'Platform yöneticisi silindi',
+  'user.delete': 'Firma kullanıcısı silindi', 'password.change': 'Şifre değiştirildi'
 };
 
 export const bytes = (n?: number) => (n == null ? '—' : n < 1048576 ? `${Math.round(n / 1024)} KB` : `${(n / 1048576).toFixed(1)} MB`);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UserPlus, KeyRound } from 'lucide-react';
+import { UserPlus, KeyRound, Trash2 } from 'lucide-react';
 import { api } from '../api';
 import { Badge, Empty, Field, Modal, Select } from '../components/primitives';
 import { relDays } from '../format';
@@ -14,6 +14,7 @@ export function Admins({ me }: { me: Admin }) {
   const [adding, setAdding] = useState(false);
   const [creds, setCreds] = useState<{ who: string; email: string; password: string } | null>(null);
   const [err, setErr] = useState('');
+  const [del, setDel] = useState<PAdmin | null>(null);
   const patch = async (a: PAdmin, body: object, after?: () => void) => {
     setErr('');
     try { await api(`/api/platform/admins/${a.id}`, body, 'PATCH'); after?.(); reload(); } catch (e: any) { setErr(e.message); }
@@ -36,6 +37,7 @@ export function Admins({ me }: { me: Admin }) {
                   <td><div className="row-actions">{a.id !== me.id && <>
                     <button className="btn xs" onClick={() => { const password = genPassword(16); if (confirm(`${a.name} için yeni şifre oluşturulsun mu?`)) patch(a, { password }, () => setCreds({ who: a.name, email: a.email, password })); }}><KeyRound size={13} /> Şifre</button>
                     <button className="btn xs" onClick={() => patch(a, { active: !a.active })}>{a.active ? 'Devre dışı' : 'Aktifleştir'}</button>
+                    <button className="btn xs ic danger" onClick={() => setDel(a)} title="Kalıcı olarak sil" aria-label="Kalıcı olarak sil"><Trash2 size={13} /></button>
                   </>}</div></td>
                 </tr>
               ))}
@@ -44,8 +46,28 @@ export function Admins({ me }: { me: Admin }) {
         </div>
       </section>
       {adding && <AddPlatformAdmin onClose={() => setAdding(false)} onCreated={(c) => { setAdding(false); setCreds(c); reload(); }} />}
+      {del && <DeleteAdmin a={del} onClose={() => setDel(null)} onDeleted={() => { setDel(null); reload(); }} />}
       {creds && <Credentials title="Platform yöneticisi giriş bilgileri" who={creds.who} email={creds.email} password={creds.password} onClose={() => setCreds(null)} />}
     </div>
+  );
+}
+
+function DeleteAdmin({ a, onClose, onDeleted }: { a: PAdmin; onClose: () => void; onDeleted: () => void }) {
+  const [confirm, setConfirm] = useState('');
+  const [err, setErr] = useState('');
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try { await api(`/api/platform/admins/${a.id}/delete`, { confirm }); onDeleted(); } catch (x: any) { setErr(x.message); }
+  };
+  return (
+    <Modal title="Platform yöneticisini sil" onClose={onClose}
+      footer={<><span className="grow" /><button className="btn ghost" onClick={onClose}>Vazgeç</button><button form="del-admin" className="btn danger" disabled={confirm.trim().toLowerCase() !== a.email}><Trash2 size={15} /> Kalıcı olarak sil</button></>}>
+      <form id="del-admin" className="grid" onSubmit={submit}>
+        <p className="full" style={{ margin: 0 }}><b>{a.name}</b> platform yöneticiliğinden kalıcı olarak silinecek. İşlem kayıtları korunur.</p>
+        <Field label={`Onaylamak için e-postayı yazın: ${a.email}`} full><input value={confirm} onChange={(e) => setConfirm(e.target.value)} autoFocus autoComplete="off" /></Field>
+        {err && <p className="error full">{err}</p>}
+      </form>
+    </Modal>
   );
 }
 

@@ -4,7 +4,7 @@ import {
   tooManyAttempts, noteFailure, clearFailures
 } from './auth.js';
 import {
-  control, getTenant, forget, tenantSql, createTenant, dropTenant, createTenantUser, updateTenantUser, audit, normEmail, HttpError
+  control, getTenant, forget, tenantSql, createTenant, dropTenant, createTenantUser, updateTenantUser, deleteTenantUser, audit, normEmail, HttpError
 } from './tenants.js';
 import { TABLES } from './schema.js';
 
@@ -113,7 +113,10 @@ export default async function platformRoutes(app) {
   app.get('/tenants/:id', async (req) => {
     const t = await loadTenant(req);
     const users = await tenantSql(t)`
-      select id, email, name, role, active, created_at, last_login_at, last_sync_at from users order by role, name`;
+      select u.id, u.email, u.name, u.role, u.active, u.created_at, u.last_login_at, u.last_sync_at,
+        (select count(*) from customers c where c.owner_id = u.id and not c.deleted)::int as customers,
+        (select count(*) from visits v where v.owner_id = u.id and not v.deleted)::int as visits
+      from users u order by u.role, u.name`;
     const log = await control`select * from audit_log where target = ${t.slug} order by id desc limit 30`;
     return { tenant: t, usage: await usage(t), users, log };
   });
@@ -152,6 +155,16 @@ export default async function platformRoutes(app) {
     const what = [b.password && 'şifre', b.active !== undefined && (b.active ? 'aktif' : 'devre dışı'), b.role && `yetki: ${b.role}`, b.email && 'e-posta', b.name && 'ad'].filter(Boolean);
     await audit(req, 'user.update', t.slug, { email: u.email, changes: what });
     return { user: { id: u.id, email: u.email, name: u.name, role: u.role, active: u.active } };
+  });
+
+  app.post('/tenants/:id/users/:uid/delete', async (req) => {
+    const t = await loadTenant(req);
+    const [u] = await tenantSql(t)`select email from users where id = ${req.params.uid}`;
+    if (!u) throw new HttpError('Kullanıcı bulunamadı.', 404);
+    if (normEmail(req.body?.confirm) !== u.email) throw new HttpError('Onay için kullanıcının e-postasını aynen yazın.');
+    const r = await deleteTenantUser(t, req.params.uid, { transferTo: req.body?.transferTo || null });
+    await audit(req, 'user.delete', t.slug, { email: r.user.email, records: r.transferredTo ? `aktarıldı → ${r.transferredTo.email}` : 'silindi', ...r.counts });
+    return { ok: true, counts: r.counts, transferredTo: r.transferredTo };
   });
 
   app.get('/tenants/:id/export', async (req, reply) => {
@@ -212,6 +225,18 @@ export default async function platformRoutes(app) {
       ? await control`update platform_admins set ${control(set)}, token_version = token_version + 1 where id = ${a.id}`
       : await control`update platform_admins set ${control(set)} where id = ${a.id}`;
     await audit(req, 'admin.update', a.email, { changes: Object.keys(set).map((k) => (k === 'password_hash' ? 'şifre' : k)) });
+    return { ok: true };
+  });
+
+  app.post('/admins/:id/delete', async (req) => {
+    const [a] = await control`select * from platform_admins where id = ${req.params.id}`;
+    if (!a) throw new HttpError('Yönetici bulunamadı.', 404);
+    if (a.id === req.admin.id) throw new HttpError('Kendi hesabınızı silemezsiniz.');
+    if (normEmail(req.body?.confirm) !== a.email) throw new HttpError('Onay için yöneticinin e-postasını aynen yazın.');
+    const [{ n }] = await control`select count(*)::int as n from platform_admins where active and id <> ${a.id}`;
+    if (n === 0) throw new HttpError('En az bir aktif platform yöneticisi kalmalı.');
+    await control`delete from platform_admins where id = ${a.id}`;
+    await audit(req, 'admin.delete', a.email);
     return { ok: true };
   });
 
