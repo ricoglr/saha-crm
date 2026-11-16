@@ -6,6 +6,7 @@ import { VisitRow } from '../components/rows';
 import { useForms } from '../components/forms';
 import { CUSTOMER_GROUPS } from '../constants';
 import { date, relDays } from '../format';
+import { Tip } from '../components/Tip';
 
 export default function Dashboard() {
   const open = useForms();
@@ -46,6 +47,8 @@ export default function Dashboard() {
         <h1>Panel</h1>
         <button className="btn primary" onClick={() => open({ type: 'visit' })}><Plus size={16} /> Görüşme ekle</button>
       </div>
+
+      <Tip id="dashboard">Görüşme eklerken <b>tekrar aranacak tarih</b> girin; zamanı yaklaşınca “Yaklaşan takipler”de hatırlatılır.</Tip>
 
       <div className="stats">
         <Stat icon={Users} label="Müşteri" value={customers.length} sub={`${customers.filter((c) => c.status === 'aktif').length} aktif`} href="#/musteriler" />

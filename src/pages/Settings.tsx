@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { RefreshCw, LogOut, KeyRound, Download, Upload, FileSpreadsheet, Smartphone, UserRound, DatabaseZap } from 'lucide-react';
+import { RefreshCw, LogOut, KeyRound, Download, Upload, FileSpreadsheet, Smartphone, UserRound, DatabaseZap, Lightbulb, PlayCircle } from 'lucide-react';
+import { useGuide, replayTour, resetTips, setTipsOff, useInstallPrompt, promptInstall, isInstalled } from '../guide';
 import { db, exportAll, importBackup, readLegacyData, deleteLegacyData, today } from '../db';
 import { useAuth } from '../auth';
 import { api } from '../api';
 import { syncNow, useSyncState } from '../sync';
+import { go } from '../router';
 import { VISIT_KINDS, QUOTE_STATUS, PROJECT_STAGES, BARTER_STATUS, CUSTOMER_STATUS } from '../constants';
 import { Field } from '../components/ui';
 
@@ -67,6 +69,8 @@ async function exportExcel(kind: string) {
 
 export default function Settings() {
   const { user, logout } = useAuth();
+  const guide = useGuide(user!.id);
+  const installPrompt = useInstallPrompt();
   const sync = useSyncState();
   const pending = useLiveQuery(() => db.outbox.count(), []) ?? 0;
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -180,12 +184,27 @@ export default function Settings() {
       </section>
 
       <section className="card">
+        <h3><Lightbulb size={14} /> Tanıtım ve ipuçları</h3>
+        <p className="muted">İlk girişteki tanıtım turunu tekrar izleyebilir, sayfalardaki ipucu kutularını yeniden açabilir veya tamamen kapatabilirsiniz.</p>
+        <div className="actions">
+          <button className="btn" onClick={() => { replayTour(); go('/'); }}><PlayCircle size={15} /> Tanıtımı tekrar göster</button>
+          <button className="btn" onClick={() => { resetTips(); setMsg({ ok: true, text: 'İpuçları yeniden gösterilecek.' }); }}><Lightbulb size={15} /> İpuçlarını yeniden göster</button>
+          {!guide.tipsOff && <button className="btn ghost" onClick={() => { setTipsOff(true); setMsg({ ok: true, text: 'İpuçları kapatıldı.' }); }}>İpuçlarını kapat</button>}
+        </div>
+      </section>
+
+      <section className="card">
         <h3><Smartphone size={14} /> Telefona / tablete kurma</h3>
-        <ul className="muted tight">
-          <li><b>iPhone / iPad (Safari):</b> Paylaş → “Ana Ekrana Ekle”.</li>
-          <li><b>Android (Chrome):</b> ⋮ menü → “Uygulamayı yükle”.</li>
-          <li><b>Bilgisayar (Chrome/Edge):</b> Adres çubuğundaki yükle simgesi.</li>
-        </ul>
+        {isInstalled() ? <p className="muted">Uygulama bu cihaza kurulu ve uygulama olarak açılmış.</p> : (
+          <>
+            {installPrompt && <div className="actions"><button className="btn primary" onClick={() => promptInstall()}><Download size={15} /> Bu cihaza yükle</button></div>}
+            <ul className="muted tight">
+              <li><b>iPhone / iPad (Safari):</b> Paylaş → “Ana Ekrana Ekle”.</li>
+              <li><b>Android (Chrome):</b> ⋮ menü → “Uygulamayı yükle”.</li>
+              <li><b>Bilgisayar (Chrome/Edge):</b> Adres çubuğundaki yükle simgesi.</li>
+            </ul>
+          </>
+        )}
       </section>
     </div>
   );

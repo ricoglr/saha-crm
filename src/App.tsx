@@ -8,6 +8,8 @@ import { FormProvider, useForms, type FormRequest } from './components/forms';
 import { AuthProvider, useAuth } from './auth';
 import { startSync } from './sync';
 import { SyncBadge } from './components/SyncBadge';
+import { Onboarding } from './components/Onboarding';
+import { useGuide } from './guide';
 import Login from './pages/Login';
 import Admin from './pages/Admin';
 import Dashboard from './pages/Dashboard';
@@ -68,6 +70,7 @@ function Shell() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   useEffect(() => startSync(), []);
+  const guide = useGuide(user!.id);
   const nav = isAdmin ? [...NAV.slice(0, -1), ['/admin', ShieldCheck, 'Yönetim'] as [string, Icon, string], NAV[NAV.length - 1]] : NAV;
 
   const quickAdd = (fn: () => void) => { setQuick(false); fn(); };
@@ -103,6 +106,8 @@ function Shell() {
         <a href="#/teklifler" className={active('/teklifler') ? 'on' : ''}><BadgePercent size={21} strokeWidth={1.8} />Teklifler</a>
         <button onClick={() => setMenu(true)}><Menu size={21} strokeWidth={1.8} />Menü</button>
       </nav>
+
+      {!guide.tourDone && <Onboarding name={user!.name} isAdmin={isAdmin} />}
 
       {quick && (
         <div className="modal-bg" onClick={() => setQuick(false)}>

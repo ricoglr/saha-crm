@@ -5,6 +5,7 @@ import { HOME_CITY, KONYA_DISTRICTS, REGION_STATUS } from '../constants';
 import { Badge, Empty, Select } from '../components/ui';
 import { useForms } from '../components/forms';
 import { date, relDays, trSort } from '../format';
+import { Tip } from '../components/Tip';
 
 const tone: Record<string, string> = { planlandi: 'amber', ziyaret: 'blue', potansiyel: 'green', zayif: 'gray' };
 
@@ -50,6 +51,7 @@ export default function Regions() {
     <div className="page">
       <div className="page-head"><h1>İl / ilçe ziyaretleri</h1></div>
 
+      <Tip id="regions">Bir ilçeye dokunarak <b>durumunu</b> ve <b>planladığınız ziyaret tarihini</b> girin. Sol kenarı gri olan ilçelere henüz hiç gidilmedi.</Tip>
       <section className="card">
         <h3>Gidilen iller</h3>
         <div className="city-chips">

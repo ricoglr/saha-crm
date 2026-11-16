@@ -9,9 +9,27 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     <title>Saha CRM</title>
+    <style>
+      html, body { margin: 0; background: #f3f5f8; }
+      @media (prefers-color-scheme: dark) { html, body { background: #0e131a; } .splash-name { color: #e4e9ef; } }
+      .splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+        font: 600 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #18212d; }
+      .splash img { border-radius: 14px; box-shadow: 0 8px 24px rgba(15, 35, 64, .18); animation: splash-in .4s ease-out; }
+      .splash-bar { width: 120px; height: 3px; border-radius: 3px; background: rgba(29, 78, 137, .15); overflow: hidden; }
+      .splash-bar span { display: block; width: 40%; height: 100%; background: #1d4e89; border-radius: 3px; animation: splash-load 1.1s ease-in-out infinite; }
+      @keyframes splash-load { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+      @keyframes splash-in { from { opacity: 0; transform: scale(.9); } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- shown until the app mounts (React replaces this) -->
+      <div class="splash">
+        <img src="/icon.svg" alt="" width="64" height="64" />
+        <div class="splash-name">Saha CRM</div>
+        <div class="splash-bar"><span></span></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -8,6 +8,7 @@ import {
   VISIT_KINDS, QUOTE_STATUS, PROJECT_STAGES, BARTER_STATUS, CUSTOMER_STATUS
 } from '../constants';
 import { date, money, num, relDays } from '../format';
+import { Tip } from '../components/Tip';
 
 type Tab = 'ozet' | 'kayitlar' | 'kullanicilar';
 type AdminUser = {
@@ -23,6 +24,7 @@ export default function Admin() {
   return (
     <div className="page">
       <div className="page-head"><h1>Yönetim paneli</h1></div>
+      <Tip id="admin">Yeni satışçıyı <b>Kullanıcılar</b> sekmesinden ekleyin; <b>Oluştur</b> butonu güvenli bir ilk şifre üretir. Satışçılar yalnızca kendi kayıtlarını görür.</Tip>
       <Chips value={tab} onChange={setTab} options={[['ozet', 'Ekip özeti'], ['kayitlar', 'Tüm kayıtlar'], ['kullanicilar', `Kullanıcılar (${users.length})`]]} />
       {tab === 'ozet' && <Overview />}
       {tab === 'kayitlar' && <Records users={users} />}

@@ -6,6 +6,7 @@ import { Chips, Empty, useCustomerMap } from '../components/ui';
 import { VisitRow } from '../components/rows';
 import { useForms } from '../components/forms';
 import { norm } from '../format';
+import { Tip } from '../components/Tip';
 
 export default function Visits({ incoming }: { incoming?: boolean }) {
   const open = useForms();
@@ -30,6 +31,7 @@ export default function Visits({ incoming }: { incoming?: boolean }) {
         </button>
       </div>
       {incoming && <p className="muted lead">Ofise / depoya sizi görmeye gelen müşteriler. Görüşme eklerken türü “Beni ziyarete geldi” seçilen kayıtlar burada listelenir.</p>}
+      {!incoming && <Tip id="visits">Müşteri adını yazmanız yeterli; listede yoksa <b>yeni müşteri kartı otomatik açılır</b>. Konuşulanları kısa kısa yazın, sonra arama kutusundan kolayca bulursunuz.</Tip>}
       {!incoming && (
         <Chips value={kind} onChange={setKind} options={[['all', 'Tümü'], ['saha', 'Saha'], ['telefon', 'Telefon'], ['gelen', 'Gelen']]} />
       )}

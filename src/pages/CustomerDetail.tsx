@@ -7,6 +7,7 @@ import { Badge, Chips, Empty } from '../components/ui';
 import { VisitRow, QuoteRow, BarterRow, ProjectRow } from '../components/rows';
 import { useForms } from '../components/forms';
 import { relDays, telHref, waHref } from '../format';
+import { Tip } from '../components/Tip';
 
 type Tab = 'visits' | 'quotes' | 'projects' | 'barters';
 
@@ -61,6 +62,7 @@ export default function CustomerDetail({ id }: { id: string }) {
         {c.notes && <p className="notes">{c.notes}</p>}
       </div>
 
+      <Tip id="customer-detail">Bu butonlarla eklediğiniz görüşme, teklif, proje ve barterde müşteri <b>otomatik seçili</b> gelir.</Tip>
       <div className="quick">
         <button className="btn primary" onClick={() => open({ type: 'visit', initial: { customerId: id, city: c.city, district: c.district } })}><Plus size={15} /> Görüşme</button>
         <button className="btn" onClick={() => open({ type: 'quote', initial: { customerId: id } })}><Plus size={15} /> Fiyat teklifi</button>

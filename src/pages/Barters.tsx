@@ -6,6 +6,7 @@ import { BARTER_STATUS } from '../constants';
 import { Chips, Empty, useCustomerMap } from '../components/ui';
 import { BarterRow } from '../components/rows';
 import { useForms } from '../components/forms';
+import { Tip } from '../components/Tip';
 
 export default function Barters() {
   const open = useForms();
@@ -19,6 +20,7 @@ export default function Barters() {
         <h1>Barter teklifleri</h1>
         <button className="btn primary" onClick={() => open({ type: 'barter' })}><Plus size={16} /> Barter</button>
       </div>
+      <Tip id="barter">Daire, arsa, araç gibi takas tekliflerini <b>tahmini değeri</b> ve karşılığında istenen ürünle kaydedin; durumunu karar verildikçe güncelleyin.</Tip>
       <Chips value={status} onChange={setStatus} options={[['all', 'Tümü'], ...Object.entries(BARTER_STATUS)] as [string, string][]} />
       {list.length ? <div className="list">{list.map((b) => <BarterRow key={b.id} b={b} c={cmap.get(b.customerId)} />)}</div>
         : <Empty>Barter teklifi kaydı yok.</Empty>}

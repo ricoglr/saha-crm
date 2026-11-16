@@ -80,6 +80,8 @@ Field sales reps at a steel trading company in Konya, Türkiye drive to construc
 - **Offline-first**: every write goes to the device first and syncs in the background.
 - **Responsive**: sidebar on desktop, bottom navigation and bottom-sheet forms on phones, touch-sized controls on tablets.
 - **Light and dark mode** follow the OS setting.
+- **Guided onboarding**: a short welcome tour on first sign-in that adapts to the role (extra step for admins) and the device (iOS install steps, or Chrome's native install prompt on Android and desktop), plus dismissible tips on each page. Both can be replayed or turned off in Settings.
+- **Splash screen** while the app loads, so the screen is never blank.
 
 ## Screenshots
 
@@ -116,6 +118,7 @@ Field sales reps at a steel trading company in Konya, Türkiye drive to construc
 | ![Customers](docs/screenshots/desktop-customers.jpg) | ![Visit form](docs/screenshots/desktop-visit-form.jpg) |
 | ![Users](docs/screenshots/admin-users.jpg) | ![Login](docs/screenshots/login.jpg) |
 | <img src="docs/screenshots/phone-quotes.jpg" width="320" /> | <img src="docs/screenshots/phone-menu.jpg" width="320" /> |
+| <img src="docs/screenshots/phone-onboarding.jpg" width="320" /> | <img src="docs/screenshots/phone-tip.jpg" width="320" /> |
 
 </details>
 
@@ -296,6 +299,7 @@ For a fresh server without a reverse proxy, the root [`docker-compose.yml`](dock
 **Saha CRM**, Konya'da inşaat demiri, sac, rulo ve profil satan bir firmanın saha pazarlama ekibi için geliştirilmiş, **internetsiz de çalışan, çok kullanıcılı** bir müşteri takip uygulamasıdır. Daha önce Excel'de tutulan müşteri, ziyaret ve fiyat takibinin yerini alır.
 
 - **Satış temsilcisi için:** müşteriler ve gruplar, saha ziyaretleri ve telefon görüşmeleri, "beni ziyarete gelenler", fiyat teklifleri ve **teklifin neden tutmadığı**, Konya'nın 31 ilçesi ve diğer illerde ziyaret kapsamı, yeni projeler, barter teklifleri, takip tarihleri, Excel'e aktarma.
+- **Yeni kullanıcılar için:** ilk girişte kısa tanıtım turu (telefona kurma adımları dahil) ve her sayfada kapatılabilir ipuçları.
 - **Yönetici için:** satışçı bazında performans (görüşme, teklif, tutma oranı), ekip genelinde tutmama nedenleri, tüm kayıtları filtreleyip arama, kullanıcı ekleme, şifre sıfırlama ve devre dışı bırakma.
 - **Teknik:** React + TypeScript PWA, IndexedDB ile çevrimdışı çalışma ve otomatik eşitleme, Node.js (Fastify) + PostgreSQL API, httpOnly çerezli JWT oturumları, Docker ile canlı ortam.
 

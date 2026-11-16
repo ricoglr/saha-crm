@@ -7,6 +7,7 @@ import { Empty, Select } from '../components/ui';
 import { CustomerRow } from '../components/rows';
 import { useForms } from '../components/forms';
 import { norm, trSort } from '../format';
+import { Tip } from '../components/Tip';
 
 export default function Customers() {
   const open = useForms();
@@ -40,6 +41,7 @@ export default function Customers() {
         <h1>Müşteriler <small className="muted">{data.customers.length}</small></h1>
         <button className="btn primary" onClick={() => open({ type: 'customer' })}><Plus size={16} /> Yeni müşteri</button>
       </div>
+      <Tip id="customers">Sıralamayı <b>“En uzun süredir görüşülmeyen”</b> yaparak uzun zamandır aramadığınız müşterileri bulun. Kartı açınca tek dokunuşla arayabilir veya WhatsApp’tan yazabilirsiniz.</Tip>
       <div className="filters">
         <input className="search" placeholder="Ara: isim, yetkili, telefon, ilçe…" value={q} onChange={(e) => setQ(e.target.value)} />
         <Select value={group} onChange={setGroup} options={CUSTOMER_GROUPS} empty="Tüm gruplar" />

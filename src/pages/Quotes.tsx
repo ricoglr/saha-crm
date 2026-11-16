@@ -8,6 +8,7 @@ import { QuoteRow } from '../components/rows';
 import { useForms } from '../components/forms';
 import { Bar } from './Dashboard';
 import { norm } from '../format';
+import { Tip } from '../components/Tip';
 
 export default function Quotes() {
   const open = useForms();
@@ -32,6 +33,7 @@ export default function Quotes() {
         <h1>Fiyat teklifleri</h1>
         <button className="btn primary" onClick={() => open({ type: 'quote' })}><Plus size={16} /> Teklif</button>
       </div>
+      <Tip id="quotes">Teklife dokunup sonucu <b>Tuttu</b> veya <b>Tutmadı</b> olarak işaretleyin. Tutmadıysa nedenini ve rakip fiyatını girin; nedenler aşağıda grafikte toplanır.</Tip>
       <div className="stats three">
         <div className="stat"><span>Beklemede</span><b>{count('beklemede')}</b></div>
         <div className="stat"><span>Tuttu</span><b className="green">{count('tuttu')}</b></div>

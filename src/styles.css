@@ -327,3 +327,31 @@ a.stat:hover { border-color: var(--primary); }
   .mobile-sync .sync.ok.compact { display: none; }
   .mobile-sync .sync.warn { color: var(--amber); } .mobile-sync .sync.bad { color: var(--red); }
 }
+
+/* ---------- welcome tour + tips ---------- */
+.tour-bg { position: fixed; inset: 0; z-index: 60; background: rgba(10, 18, 30, .55); display: grid; place-items: center; padding: 16px; animation: fade .2s ease-out; }
+.tour { position: relative; width: min(440px, 100%); background: var(--card); border-radius: 14px; padding: 28px 24px 18px; text-align: center; box-shadow: 0 24px 60px rgba(0,0,0,.3); animation: pop .25s ease-out; }
+.tour-skip { position: absolute; top: 10px; right: 10px; }
+.tour-ic { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 16px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); }
+.tour h2 { font-size: 19px; margin-bottom: 8px; }
+.tour-body { min-height: 112px; color: var(--muted); font-size: 14.5px; line-height: 1.55; animation: fade .25s ease-out; }
+.tour-body p { margin: 0 0 8px; }
+.tour-body b { color: var(--text); }
+.tour-body .btn { margin-top: 6px; }
+.tour-body .addr { font-weight: 650; color: var(--primary); font-size: 15px; word-break: break-all; }
+.steps { text-align: left; margin: 4px auto 0; padding-left: 22px; max-width: 320px; }
+.steps li { margin: 6px 0; }
+.steps svg { vertical-align: -2px; color: var(--primary); }
+.tour-dots { display: flex; justify-content: center; gap: 6px; margin: 16px 0 14px; }
+.tour-dots button { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 4px; background: var(--line); cursor: pointer; transition: width .2s, background .2s; }
+.tour-dots button.on { width: 20px; background: var(--primary); }
+.tour-foot { display: flex; align-items: center; gap: 8px; }
+@keyframes fade { from { opacity: 0; } }
+@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+
+.tip { display: flex; align-items: flex-start; gap: 10px; background: var(--blue-bg); border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent); border-radius: 8px; padding: 9px 6px 9px 12px; font-size: 13px; line-height: 1.45; animation: fade .25s ease-out; }
+.tip-ic { color: var(--primary); margin-top: 1px; }
+.tip-text { flex: 1; }
+.tip-text b { font-weight: 650; }
+.tip .icon-btn { width: 28px; height: 28px; margin: -4px 0; }
+@media (max-width: 560px) { .tour { padding: 24px 18px 14px; } .tour-body { min-height: 132px; } }
