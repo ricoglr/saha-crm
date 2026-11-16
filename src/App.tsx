@@ -8,6 +8,7 @@ import { FormProvider, useForms, type FormRequest } from './components/forms';
 import { AuthProvider, useAuth } from './auth';
 import { startSync } from './sync';
 import { SyncBadge } from './components/SyncBadge';
+import { ThemeToggle } from './components/ThemeToggle';
 import { Onboarding } from './components/Onboarding';
 import { useGuide } from './guide';
 import Login from './pages/Login';
@@ -88,6 +89,7 @@ function Shell() {
           <SyncBadge />
           <div className="me">
             <div><b>{user?.name}</b><small>{isAdmin ? 'Yönetici' : 'Satış temsilcisi'}</small></div>
+            <ThemeToggle />
             <button className="icon-btn" title="Hesap ve çıkış" onClick={() => { setMenu(false); go('/ayarlar'); }}><LogOut size={16} /></button>
           </div>
         </div>

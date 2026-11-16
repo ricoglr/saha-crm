@@ -86,13 +86,14 @@ A separate app with its own login, used only by the provider's technical staff.
 | **Limits & support** | Per-company active-user limit, enforced when the company admin invites users. Reset a company user's password, add or deactivate users. |
 | **Monitoring** | Per company: active users, customers, visits, quotes, database size, last activity. Platform totals and API health. |
 | **Backups** | One-click JSON export of a company's whole database. |
-| **Governance** | Multiple platform admins, plus an **audit log** of every platform action (who, what, which company, IP). |
+| **Governance** | Multiple platform admins, plus an **audit log** of every platform action (who, what, which company, IP), shown as a searchable terminal-style log. |
+| **Developer UX** | **⌘K / Ctrl+K command palette** (jump to any page or company, run actions), live API health with round-trip time, copyable ids, raw `tenant.json` view, monospace developer-tool styling. |
 
 ### Platform
 - **Installable PWA**: home-screen app on iOS and Android, desktop app on Chrome and Edge.
 - **Offline-first**: every write goes to the device first and syncs in the background.
 - **Responsive**: sidebar on desktop, bottom navigation and bottom-sheet forms on phones, touch-sized controls on tablets.
-- **Light and dark mode** follow the OS setting.
+- **Light / dark / system theme** switch in both apps (sidebar, login screen and Settings). The choice is remembered and applied before first paint, so there is no flash of the wrong theme.
 - **Guided onboarding**: a short welcome tour on first sign-in that adapts to the role (extra step for admins) and the device (iOS install steps, or Chrome's native install prompt on Android and desktop), plus dismissible tips on each page. Both can be replayed or turned off in Settings.
 - **Splash screen** while the app loads, so the screen is never blank.
 
@@ -115,6 +116,10 @@ A separate app with its own login, used only by the provider's technical staff.
 |---|---|
 | ![Companies](docs/screenshots/platform-tenants.jpg) | ![Company detail](docs/screenshots/platform-detail.jpg) |
 
+| Platform console: overview (dark) | Command palette (⌘K) |
+|---|---|
+| ![Platform overview](docs/screenshots/platform-overview.jpg) | ![Command palette](docs/screenshots/platform-palette.jpg) |
+
 | Admin: team overview | Admin: all records |
 |---|---|
 | ![Admin overview](docs/screenshots/admin-overview.jpg) | ![Admin records](docs/screenshots/admin-records.jpg) |
@@ -135,6 +140,7 @@ A separate app with its own login, used only by the provider's technical staff.
 | ![Customers](docs/screenshots/desktop-customers.jpg) | ![Visit form](docs/screenshots/desktop-visit-form.jpg) |
 | ![Users](docs/screenshots/admin-users.jpg) | ![Login](docs/screenshots/login.jpg) |
 | ![New company](docs/screenshots/platform-create.jpg) | ![Audit log](docs/screenshots/platform-audit.jpg) |
+| ![Dark theme](docs/screenshots/desktop-dashboard-dark.jpg) | |
 | <img src="docs/screenshots/phone-quotes.jpg" width="320" /> | <img src="docs/screenshots/phone-menu.jpg" width="320" /> |
 | <img src="docs/screenshots/phone-onboarding.jpg" width="320" /> | <img src="docs/screenshots/phone-tip.jpg" width="320" /> |
 
@@ -362,7 +368,8 @@ For a fresh server without a reverse proxy, the root [`docker-compose.yml`](dock
 
 - **Satış temsilcisi için:** müşteriler ve gruplar, saha ziyaretleri ve telefon görüşmeleri, "beni ziyarete gelenler", fiyat teklifleri ve **teklifin neden tutmadığı**, Konya'nın 31 ilçesi ve diğer illerde ziyaret kapsamı, yeni projeler, barter teklifleri, takip tarihleri, Excel'e aktarma.
 - **Yeni kullanıcılar için:** ilk girişte kısa tanıtım turu (telefona kurma adımları dahil) ve her sayfada kapatılabilir ipuçları.
-- **Yazılım sağlayıcısı için (platform paneli, `/platform`):** yeni firma oluşturma (her firmaya ayrı veritabanı), askıya alma, silme, kullanıcı limiti, firma kullanıcılarının şifresini sıfırlama, yedek indirme, platform yöneticileri ve işlem kaydı.
+- **Her iki uygulamada açık / koyu / sistem teması** seçimi.
+- **Yazılım sağlayıcısı için (platform paneli, `/platform`, ⌘K komut paleti ile):** yeni firma oluşturma (her firmaya ayrı veritabanı), askıya alma, silme, kullanıcı limiti, firma kullanıcılarının şifresini sıfırlama, yedek indirme, platform yöneticileri ve işlem kaydı.
 - **Yönetici için:** satışçı bazında performans (görüşme, teklif, tutma oranı), ekip genelinde tutmama nedenleri, tüm kayıtları filtreleyip arama, kullanıcı ekleme, şifre sıfırlama ve devre dışı bırakma.
 - **Teknik:** React + TypeScript PWA, IndexedDB ile çevrimdışı çalışma ve otomatik eşitleme, Node.js (Fastify) + PostgreSQL API, httpOnly çerezli JWT oturumları, Docker ile canlı ortam.
 

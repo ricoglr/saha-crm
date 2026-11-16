@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { RefreshCw, LogOut, KeyRound, Download, Upload, FileSpreadsheet, Smartphone, UserRound, DatabaseZap, Lightbulb, PlayCircle } from 'lucide-react';
+import { RefreshCw, LogOut, KeyRound, Download, Upload, FileSpreadsheet, Smartphone, UserRound, DatabaseZap, Lightbulb, PlayCircle, Palette } from 'lucide-react';
 import { useGuide, replayTour, resetTips, setTipsOff, useInstallPrompt, promptInstall, isInstalled } from '../guide';
 import { db, exportAll, importBackup, readLegacyData, deleteLegacyData, today } from '../db';
 import { useAuth } from '../auth';
 import { api } from '../api';
 import { syncNow, useSyncState } from '../sync';
 import { go } from '../router';
+import { ThemeSegment } from '../components/ThemeToggle';
 import { VISIT_KINDS, QUOTE_STATUS, PROJECT_STAGES, BARTER_STATUS, CUSTOMER_STATUS } from '../constants';
 import { Field } from '../components/ui';
 
@@ -181,6 +182,12 @@ export default function Settings() {
           <button className="btn" onClick={backup}><Download size={15} /> Yedek indir</button>
           <label className="btn"><Upload size={15} /> Yedek dosyasını aktar<input type="file" accept="application/json,.json" hidden disabled={busy} onChange={(e) => { restore(e.target.files?.[0]); e.target.value = ''; }} /></label>
         </div>
+      </section>
+
+      <section className="card">
+        <h3><Palette size={14} /> Görünüm</h3>
+        <p className="muted">“Sistem” seçiliyse tema cihazınızın açık/koyu ayarını izler.</p>
+        <ThemeSegment />
       </section>
 
       <section className="card">

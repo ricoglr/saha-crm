@@ -10,8 +10,9 @@
   --shadow: 0 1px 2px rgba(16, 24, 40, .05);
   color-scheme: light;
 }
+/* Dark theme: follows the OS unless the user picked a theme (html[data-theme]) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0e131a; --card: #161d26; --text: #e4e9ef; --muted: #8e9bab; --line: #26303c; --line-2: #1d2530;
     --primary: #5e95da; --primary-ink: #0b1220; --primary-soft: #1a2a40;
     --nav: #0a0f15; --nav-ink: #9aa8b8; --nav-active: #1c2c42;
@@ -22,6 +23,16 @@
     color-scheme: dark;
   }
 }
+:root[data-theme="dark"] {
+    --bg: #0e131a; --card: #161d26; --text: #e4e9ef; --muted: #8e9bab; --line: #26303c; --line-2: #1d2530;
+    --primary: #5e95da; --primary-ink: #0b1220; --primary-soft: #1a2a40;
+    --nav: #0a0f15; --nav-ink: #9aa8b8; --nav-active: #1c2c42;
+    --green: #5cc98b; --green-bg: #15301f; --red: #f08478; --red-bg: #361b18;
+    --amber: #eab062; --amber-bg: #33270f; --blue: #8ab4f0; --blue-bg: #18273b;
+    --purple: #c0a2ec; --purple-bg: #271e38; --gray-bg: #212a35;
+    --shadow: none;
+    color-scheme: dark;
+  }
 @media (pointer: coarse) { :root { --ctl: 42px; } }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
@@ -356,3 +367,12 @@ a.stat:hover { border-color: var(--primary); }
 .tip-text b { font-weight: 650; }
 .tip .icon-btn { width: 28px; height: 28px; margin: -4px 0; }
 @media (max-width: 560px) { .tour { padding: 24px 18px 14px; } .tour-body { min-height: 132px; } }
+
+/* ---------- theme switch ---------- */
+.theme-seg { display: inline-grid; grid-template-columns: repeat(3, auto); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.theme-seg button { display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; min-height: var(--ctl); border: 0; border-left: 1px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; font-weight: 550; }
+.theme-seg button:first-child { border-left: 0; }
+.theme-seg button.on { background: var(--primary-soft); color: var(--primary); }
+.login { position: relative; }
+.login-theme { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; color: #fff; background: rgba(255,255,255,.08); }
+.login-theme:hover { background: rgba(255,255,255,.16); }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LogIn } from 'lucide-react';
 import { useAuth } from '../auth';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 export default function Login() {
   const { login } = useAuth();
@@ -15,6 +16,7 @@ export default function Login() {
   };
   return (
     <div className="login">
+      <ThemeToggle className="icon-btn login-theme" />
       <form className="login-card" onSubmit={submit}>
         <div className="login-brand">
           <img src="/icon.svg" alt="" />

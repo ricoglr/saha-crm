@@ -4,6 +4,7 @@ import { api } from '../api';
 import { Badge, Empty, Field, Modal, Select } from '../components/primitives';
 import { relDays } from '../format';
 import { ACTIONS, dt, genPassword, useLoad, type Admin, type LogEntry } from './util';
+import { Terminal, IdChip } from './ui';
 import { Credentials } from './Tenants';
 
 type PAdmin = Admin & { active: boolean; created_at: string; last_login_at?: string };
@@ -29,7 +30,7 @@ export function Admins({ me }: { me: Admin }) {
             <tbody>
               {(data?.admins || []).map((a) => (
                 <tr key={a.id} className={a.active ? '' : 'dim'}>
-                  <td><b>{a.name}</b>{a.id === me.id && <span className="muted"> (siz)</span>}</td><td>{a.email}</td>
+                  <td><b>{a.name}</b>{a.id === me.id && <span className="muted"> (siz)</span>}<div><IdChip value={a.id} /></div></td><td><code className="code">{a.email}</code></td>
                   <td>{a.active ? <Badge tone="green">Aktif</Badge> : <Badge>Devre dışı</Badge>}</td>
                   <td>{a.last_login_at ? relDays(a.last_login_at) : 'hiç'}</td><td>{dt(a.created_at)}</td>
                   <td><div className="row-actions">{a.id !== me.id && <>
@@ -69,29 +70,18 @@ function AddPlatformAdmin({ onClose, onCreated }: { onClose: () => void; onCreat
 
 export function Audit() {
   const [filter, setFilter] = useState('');
-  const { data } = useLoad(() => api<{ log: LogEntry[] }>('/api/platform/audit?limit=500'), []);
-  const log = (data?.log || []).filter((l) => !filter || l.action === filter);
+  const [q, setQ] = useState('');
+  const { data, reload, loading } = useLoad(() => api<{ log: LogEntry[] }>('/api/platform/audit?limit=500'), []);
+  const n = q.toLowerCase();
+  const log = (data?.log || []).filter((l) => (!filter || l.action === filter) && (!n || JSON.stringify(l).toLowerCase().includes(n)));
   return (
     <div className="page">
-      <div className="page-head"><h1>İşlem kaydı</h1></div>
-      <div className="filters"><Select value={filter} onChange={setFilter} options={ACTIONS} empty="Tüm işlemler" /></div>
-      <section className="card flush">
-        <div className="table-wrap">
-          <table className="table">
-            <thead><tr><th>Zaman</th><th>İşlem</th><th>Hedef</th><th>Ayrıntı</th><th>Kim</th><th>IP</th></tr></thead>
-            <tbody>
-              {log.map((l) => (
-                <tr key={l.id}>
-                  <td>{dt(l.at)}</td><td>{ACTIONS[l.action] || l.action}</td><td><span className="mono-sm">{l.target || ''}</span></td>
-                  <td className="mono-sm">{l.details ? Object.entries(l.details).map(([k, x]) => `${k}: ${Array.isArray(x) ? x.join(', ') : x}`).join(' · ') : ''}</td>
-                  <td>{l.actor_email || '—'}</td><td className="mono-sm">{l.ip || ''}</td>
-                </tr>
-              ))}
-              {!log.length && <tr><td colSpan={6}><Empty>Kayıt yok.</Empty></td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <div className="page-head"><h1>İşlem kaydı</h1><button className="btn" onClick={reload} disabled={loading}>↻ yenile</button></div>
+      <div className="filters">
+        <Select value={filter} onChange={setFilter} options={ACTIONS} empty="tüm işlemler" />
+        <input className="search mono-in" placeholder="grep…  (firma kodu, e-posta, ip)" value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+      <Terminal log={log} title={`audit.log${filter ? ' | ' + filter : ''}${q ? ' | grep ' + q : ''}`} showIp empty="eşleşen kayıt yok" />
     </div>
   );
 }

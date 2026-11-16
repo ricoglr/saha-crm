@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ChevronLeft, Pencil, PauseCircle, PlayCircle, Download, Trash2, UserPlus, KeyRound } from 'lucide-react';
+import { ChevronLeft, Pencil, PauseCircle, PlayCircle, Download, Trash2, UserPlus, KeyRound, Braces, Power, PowerOff } from 'lucide-react';
 import { api } from '../api';
 import { Badge, Empty, Field, Modal, Select } from '../components/primitives';
 import { num, relDays } from '../format';
-import { ACTIONS, bytes, dt, genPassword, useLoad, type LogEntry, type Tenant, type Usage } from './util';
+import { bytes, dt, genPassword, useLoad, type LogEntry, type Tenant, type Usage } from './util';
 import { Credentials, StatusBadge } from './Tenants';
+import { IdChip, Terminal } from './ui';
 
 type TUser = { id: string; email: string; name: string; role: 'admin' | 'rep'; active: boolean; created_at: string; last_login_at?: string; last_sync_at?: string };
 type Detail = { tenant: Tenant; usage: Usage; users: TUser[]; log: LogEntry[] };
@@ -38,7 +39,10 @@ export default function TenantDetail({ id }: { id: string }) {
         <div className="tenant-head">
           <div>
             <h1>{t.name} <StatusBadge s={t.status} />{t.is_legacy && <Badge>İlk kurulum</Badge>}</h1>
-            <div className="mono-sm">kod: {t.slug} · veritabanı: {t.db_name} · oluşturma: {dt(t.created_at)}</div>
+            <div className="meta-row">
+              <IdChip value={t.id} label="id" /><IdChip value={t.slug} short={0} label="kod" /><IdChip value={t.db_name} short={0} label="db" />
+              <span className="mono-sm">oluşturma {dt(t.created_at)}</span>
+            </div>
           </div>
           <div className="actions">
             <button className="btn" onClick={() => setEditing(true)}><Pencil size={15} /> Düzenle</button>
@@ -50,55 +54,57 @@ export default function TenantDetail({ id }: { id: string }) {
       {msg && <div className={msg.startsWith('Hata') ? 'notice bad' : 'notice'}>{msg}</div>}
 
       <div className="stats six">
-        <div className="stat"><span>Aktif kullanıcı</span><b>{u?.active_users ?? '—'}</b><small>limit: {t.max_users || 'sınırsız'}</small></div>
-        <div className="stat"><span>Müşteri</span><b>{num(u?.customers)}</b></div>
-        <div className="stat"><span>Görüşme</span><b>{num(u?.visits)}</b></div>
-        <div className="stat"><span>Teklif</span><b>{num(u?.quotes)}</b></div>
-        <div className="stat"><span>Veritabanı</span><b>{bytes(u?.db_bytes)}</b></div>
-        <div className="stat"><span>Son aktivite</span><b>{u?.last_activity ? relDays(u.last_activity) : 'hiç'}</b></div>
+        <div className="stat"><span>users.active</span><b>{u?.active_users ?? '—'}{t.max_users ? <small className="of"> / {t.max_users}</small> : null}</b><small>limit: {t.max_users || '∞'}</small></div>
+        <div className="stat"><span>customers</span><b>{num(u?.customers)}</b></div>
+        <div className="stat"><span>visits</span><b>{num(u?.visits)}</b></div>
+        <div className="stat"><span>quotes</span><b>{num(u?.quotes)}</b></div>
+        <div className="stat"><span>db.size</span><b>{bytes(u?.db_bytes)}</b></div>
+        <div className="stat"><span>last_activity</span><b>{u?.last_activity ? relDays(u.last_activity) : 'hiç'}</b></div>
       </div>
+
+      <section className="card flush">
+        <div className="page-head pad-h"><h3 style={{ margin: 0 }}>Kullanıcılar</h3><button className="btn sm" onClick={() => setAdding(true)}><UserPlus size={14} /> Yönetici ekle</button></div>
+        <div className="table-wrap" style={{ marginTop: 10 }}>
+          <table className="table">
+            <thead><tr><th>Ad</th><th>E-posta</th><th>Yetki</th><th>Durum</th><th>Son giriş</th><th className="n">işlem</th></tr></thead>
+            <tbody>
+              {users.map((x) => (
+                <tr key={x.id} className={x.active ? '' : 'dim'}>
+                  <td><b>{x.name}</b><div><IdChip value={x.id} /></div></td><td><code className="code">{x.email}</code></td>
+                  <td>{x.role === 'admin' ? <Badge tone="blue">Yönetici</Badge> : 'Satışçı'}</td>
+                  <td>{x.active ? <Badge tone="green">Aktif</Badge> : <Badge>Devre dışı</Badge>}</td>
+                  <td>{x.last_login_at ? relDays(x.last_login_at) : 'hiç'}</td>
+                  <td><div className="row-actions">
+                    <button className="btn xs ic" onClick={() => resetPw(x)} title="Şifre sıfırla" aria-label="Şifre sıfırla"><KeyRound size={13} /></button>
+                    <button className="btn xs ic" onClick={() => act(() => api(`/api/platform/tenants/${t.id}/users/${x.id}`, { active: !x.active }, 'PATCH'))}
+                      title={x.active ? 'Devre dışı bırak' : 'Aktifleştir'} aria-label={x.active ? 'Devre dışı bırak' : 'Aktifleştir'}>{x.active ? <PowerOff size={13} /> : <Power size={13} />}</button>
+                  </div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="cols two">
-        <section className="card flush">
-          <div className="page-head pad-h"><h3 style={{ margin: 0 }}>Kullanıcılar</h3><button className="btn sm" onClick={() => setAdding(true)}><UserPlus size={14} /> Yönetici ekle</button></div>
-          <div className="table-wrap" style={{ marginTop: 10 }}>
-            <table className="table">
-              <thead><tr><th>Ad</th><th>E-posta</th><th>Yetki</th><th>Durum</th><th>Son giriş</th><th></th></tr></thead>
-              <tbody>
-                {users.map((x) => (
-                  <tr key={x.id} className={x.active ? '' : 'dim'}>
-                    <td><b>{x.name}</b></td><td>{x.email}</td>
-                    <td>{x.role === 'admin' ? <Badge tone="blue">Yönetici</Badge> : 'Satışçı'}</td>
-                    <td>{x.active ? <Badge tone="green">Aktif</Badge> : <Badge>Devre dışı</Badge>}</td>
-                    <td>{x.last_login_at ? relDays(x.last_login_at) : 'hiç'}</td>
-                    <td><div className="row-actions">
-                      <button className="btn xs" onClick={() => resetPw(x)} title="Şifre sıfırla"><KeyRound size={13} /> Şifre</button>
-                      <button className="btn xs" onClick={() => act(() => api(`/api/platform/tenants/${t.id}/users/${x.id}`, { active: !x.active }, 'PATCH'))}>{x.active ? 'Devre dışı' : 'Aktifleştir'}</button>
-                    </div></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-        <section className="card">
-          <h3>Firma bilgileri</h3>
-          <div className="kv wide">
-            <span>Paket</span><b>{t.plan || '—'}</b>
-            <span>Yetkili</span><b>{t.contact_name || '—'}</b>
-            <span>E-posta</span><b>{t.contact_email || '—'}</b>
-            <span>Telefon</span><b>{t.contact_phone || '—'}</b>
-            <span>Notlar</span><b className="pre">{t.notes || '—'}</b>
-          </div>
-        </section>
+        <Terminal log={data.log} title={`grep "${t.slug}" audit.log`} />
+        <div className="stack">
+          <section className="card">
+            <h3>Firma bilgileri</h3>
+            <div className="kv wide">
+              <span>Paket</span><b>{t.plan || '—'}</b>
+              <span>Yetkili</span><b>{t.contact_name || '—'}</b>
+              <span>E-posta</span><b>{t.contact_email || '—'}</b>
+              <span>Telefon</span><b>{t.contact_phone || '—'}</b>
+              <span>Notlar</span><b className="pre">{t.notes || '—'}</b>
+            </div>
+          </section>
+          <details className="card cfg">
+            <summary><Braces size={14} /> tenant.json <span className="muted small">(ham kayıt)</span></summary>
+            <pre className="json">{JSON.stringify({ ...t, usage: u }, null, 2)}</pre>
+          </details>
+        </div>
       </div>
-
-      <section className="card">
-        <h3>Bu firmayla ilgili işlemler</h3>
-        {data.log.length ? <div className="log">{data.log.map((l) => (
-          <div key={l.id} className="log-row"><span className="when">{dt(l.at)}</span><span>{ACTIONS[l.action] || l.action}{l.details?.email && <span className="det"> · {l.details.email}</span>}{l.details?.changes && <span className="det"> ({l.details.changes.join(', ')})</span>}</span><span className="who">{l.actor_email}</span></div>
-        ))}</div> : <Empty>Kayıt yok.</Empty>}
-      </section>
 
       <section className="card danger-zone">
         <h3>Tehlikeli bölge</h3>

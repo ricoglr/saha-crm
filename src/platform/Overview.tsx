@@ -1,13 +1,14 @@
-import { Building2, Users, Database, Plus, Server } from 'lucide-react';
+import { Building2, Users, Database, Plus, Activity, Cpu } from 'lucide-react';
 import { api } from '../api';
-import { Empty } from '../components/primitives';
 import { num } from '../format';
-import { bytes, dt, useLoad, ACTIONS, type LogEntry } from './util';
+import { bytes, useLoad, type LogEntry } from './util';
+import { Terminal } from './ui';
 
 type Stats = {
   tenants: { total: number; active: number; suspended: number }; users: number; activeUsers: number; customers: number; visits: number; quotes: number;
   dbBytes: number; recent: LogEntry[]; server: { node: string; uptime: number; memoryMb: number };
 };
+const up = (s: number) => `${Math.floor(s / 86400)}g ${Math.floor((s % 86400) / 3600)}s ${Math.floor((s % 3600) / 60)}d`;
 
 export default function Overview() {
   const { data, err } = useLoad(() => api<Stats>('/api/platform/stats'), []);
@@ -21,30 +22,23 @@ export default function Overview() {
       {data && (
         <>
           <div className="stats">
-            <a className="stat" href="#/firmalar"><span className="stat-ic"><Building2 size={18} /></span><span>Firma</span><b>{data.tenants.total}</b><small>{data.tenants.active} aktif · {data.tenants.suspended} askıda</small></a>
-            <div className="stat"><span className="stat-ic"><Users size={18} /></span><span>Kullanıcı</span><b>{data.users}</b><small>{data.activeUsers} aktif</small></div>
-            <div className="stat"><span>Kayıtlar</span><b>{num(data.customers + data.visits + data.quotes)}</b><small>{num(data.customers)} müşteri · {num(data.visits)} görüşme · {num(data.quotes)} teklif</small></div>
-            <div className="stat"><span className="stat-ic"><Database size={18} /></span><span>Veritabanı boyutu</span><b>{bytes(data.dbBytes)}</b><small>tüm firmalar</small></div>
+            <a className="stat" href="#/firmalar"><span className="stat-ic"><Building2 size={16} /></span><span>firmalar</span><b>{data.tenants.total}</b><small><span className="okc">{data.tenants.active} active</span> · <span className="warnc">{data.tenants.suspended} suspended</span></small></a>
+            <div className="stat"><span className="stat-ic"><Users size={16} /></span><span>kullanıcılar</span><b>{data.users}</b><small>{data.activeUsers} aktif</small></div>
+            <div className="stat"><span className="stat-ic"><Activity size={16} /></span><span>kayıtlar</span><b>{num(data.customers + data.visits + data.quotes)}</b><small>{num(data.customers)} müş · {num(data.visits)} gör · {num(data.quotes)} tek</small></div>
+            <div className="stat"><span className="stat-ic"><Database size={16} /></span><span>disk</span><b>{bytes(data.dbBytes)}</b><small>{data.tenants.total} veritabanı</small></div>
           </div>
           <div className="cols two">
+            <Terminal log={data.recent} title="tail -n 8 audit.log" />
             <section className="card">
-              <h3>Son işlemler</h3>
-              {data.recent.length ? (
-                <div className="log">
-                  {data.recent.map((l) => (
-                    <div key={l.id} className="log-row"><span className="when">{dt(l.at)}</span><span>{ACTIONS[l.action] || l.action}{l.target && <b> · {l.target}</b>}</span><span className="who">{l.actor_email}</span></div>
-                  ))}
-                </div>
-              ) : <Empty>Henüz işlem yok.</Empty>}
-              <a href="#/kayit" className="small">Tüm işlem kaydı →</a>
-            </section>
-            <section className="card">
-              <h3><Server size={14} /> Sunucu</h3>
-              <div className="kv">
-                <span>API çalışma süresi</span><b>{Math.floor(data.server.uptime / 3600)} sa {Math.floor((data.server.uptime % 3600) / 60)} dk</b>
-                <span>API bellek</span><b>{data.server.memoryMb} MB</b>
-                <span>Node.js</span><b>{data.server.node}</b>
+              <h3><Cpu size={14} /> sistem</h3>
+              <div className="kv mono-kv">
+                <span>status</span><b className="okc">● çalışıyor</b>
+                <span>uptime</span><b>{up(data.server.uptime)}</b>
+                <span>memory</span><b>{data.server.memoryMb} MB rss</b>
+                <span>runtime</span><b>node {data.server.node}</b>
+                <span>tenancy</span><b>database-per-tenant</b>
               </div>
+              <a href="#/kayit" className="small">→ işlem kaydının tamamı</a>
             </section>
           </div>
         </>

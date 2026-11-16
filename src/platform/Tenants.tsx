@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Plus, KeyRound, Search, Copy, Check } from 'lucide-react';
 import { api } from '../api';
-import { Badge, Empty, Field, Modal } from '../components/primitives';
+import { Empty, Field, Modal } from '../components/primitives';
 import { num, relDays } from '../format';
 import { bytes, genPassword, slugify, useLoad, type Tenant } from './util';
+import { Status, IdChip } from './ui';
 
 export function StatusBadge({ s }: { s: string }) {
-  return s === 'active' ? <Badge tone="green">Aktif</Badge> : <Badge tone="amber">Askıda</Badge>;
+  return <Status s={s} />;
 }
 
 export function TenantList() {
@@ -27,7 +28,7 @@ export function TenantList() {
         <div className="table-wrap">
           <table className="table clickable">
             <thead><tr>
-              <th>Firma</th><th>Kod / veritabanı</th><th>Durum</th><th>Paket</th><th className="n">Kullanıcı</th><th className="n">Müşteri</th>
+              <th>Firma</th><th>id</th><th>Kod / veritabanı</th><th>Durum</th><th>Paket</th><th className="n">Kullanıcı</th><th className="n">Müşteri</th>
               <th className="n">Görüşme</th><th className="n">Boyut</th><th>Son aktivite</th><th>Oluşturma</th>
             </tr></thead>
             <tbody>
@@ -36,7 +37,8 @@ export function TenantList() {
                 return (
                   <tr key={t.id} onClick={() => { location.hash = '/firma/' + t.id; }}>
                     <td><b>{t.name}</b>{t.contact_name && <div className="muted small">{t.contact_name}</div>}</td>
-                    <td><span className="mono-sm">{t.slug} · {t.db_name}</span></td>
+                    <td><IdChip value={t.id} /></td>
+                    <td><code className="code">{t.db_name}</code></td>
                     <td><StatusBadge s={t.status} /></td>
                     <td>{t.plan || '—'}</td>
                     <td className="n">{u && !u.error ? `${u.active_users}${t.max_users ? ' / ' + t.max_users : ''}` : '—'}</td>
@@ -48,7 +50,7 @@ export function TenantList() {
                   </tr>
                 );
               })}
-              {!loading && !list.length && <tr><td colSpan={10}><Empty>Henüz firma yok. “Yeni firma” ile ilk müşterinizi oluşturun.</Empty></td></tr>}
+              {!loading && !list.length && <tr><td colSpan={11}><Empty>Henüz firma yok. “Yeni firma” ile ilk müşterinizi oluşturun.</Empty></td></tr>}
             </tbody>
           </table>
         </div>
