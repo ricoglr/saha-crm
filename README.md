@@ -4,10 +4,10 @@
 
 # Saha CRM
 
-**An offline-first, multi-user field sales CRM for steel trading teams**
+**An offline-first, multi-company field sales CRM for steel trading teams**
 *(rebar, steel sheet, coil and profile sales)*
 
-Installable on phones, tablets and desktops · Works without internet in the field · Syncs automatically when back online
+Installable on phones, tablets and desktops · Works without internet in the field · One isolated database per customer company
 
 ![React](https://img.shields.io/badge/React-18-20232a?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)
@@ -52,6 +52,7 @@ Field sales reps at a steel trading company in Konya, Türkiye drive to construc
 - Prices change daily and deals are lost for specific, recurring reasons: price, a competitor, payment terms, delivery time, freight cost. Capturing **why a quote was lost** is as valuable as recording the quote.
 - Customers sometimes pay in kind (**barter**: an apartment or a plot of land in exchange for rebar), which generic CRMs don't model.
 - Managers need a **team-wide view** without reps seeing each other's customers and prices.
+- It is **sold to several companies**: each company's data must be strictly separate, and the software provider needs one console to onboard, suspend and support them.
 
 ## Features
 
@@ -74,6 +75,18 @@ Field sales reps at a steel trading company in Konya, Türkiye drive to construc
 | **Team overview** | Per-rep KPIs for a chosen period: customers, visits (field / walk-in), quotes, won/lost, **win rate**, pending quotes, open projects, last visit and last sync. Team-wide loss reasons, quotes by product, most-visited cities. |
 | **All records** | Browse every rep's customers, visits, quotes, projects and barter offers. Filter by rep, date range and free-text search. Detail view and Excel export. |
 | **User management** | Create accounts with a generated initial password, reset passwords, promote to admin, deactivate. Deactivation **signs the user out on every device** immediately; their records stay in reports. |
+
+### For the software provider (platform console at `/platform`)
+A separate app with its own login, used only by the provider's technical staff.
+
+| Area | What it does |
+|---|---|
+| **Companies** | Create a company in one step: its **own PostgreSQL database** is created and migrated, and its first admin account is generated. Edit name, plan, contact details and notes. |
+| **Lifecycle** | **Suspend** a company (all its users are signed out at once and can't log in; data is kept), reactivate it, or **delete** it permanently (typed confirmation plus password; drops the database). |
+| **Limits & support** | Per-company active-user limit, enforced when the company admin invites users. Reset a company user's password, add or deactivate users. |
+| **Monitoring** | Per company: active users, customers, visits, quotes, database size, last activity. Platform totals and API health. |
+| **Backups** | One-click JSON export of a company's whole database. |
+| **Governance** | Multiple platform admins, plus an **audit log** of every platform action (who, what, which company, IP). |
 
 ### Platform
 - **Installable PWA**: home-screen app on iOS and Android, desktop app on Chrome and Edge.
@@ -98,6 +111,10 @@ Field sales reps at a steel trading company in Konya, Türkiye drive to construc
   </tr>
 </table>
 
+| Platform console: companies | Platform console: company detail |
+|---|---|
+| ![Companies](docs/screenshots/platform-tenants.jpg) | ![Company detail](docs/screenshots/platform-detail.jpg) |
+
 | Admin: team overview | Admin: all records |
 |---|---|
 | ![Admin overview](docs/screenshots/admin-overview.jpg) | ![Admin records](docs/screenshots/admin-records.jpg) |
@@ -117,6 +134,7 @@ Field sales reps at a steel trading company in Konya, Türkiye drive to construc
 |---|---|
 | ![Customers](docs/screenshots/desktop-customers.jpg) | ![Visit form](docs/screenshots/desktop-visit-form.jpg) |
 | ![Users](docs/screenshots/admin-users.jpg) | ![Login](docs/screenshots/login.jpg) |
+| ![New company](docs/screenshots/platform-create.jpg) | ![Audit log](docs/screenshots/platform-audit.jpg) |
 | <img src="docs/screenshots/phone-quotes.jpg" width="320" /> | <img src="docs/screenshots/phone-menu.jpg" width="320" /> |
 | <img src="docs/screenshots/phone-onboarding.jpg" width="320" /> | <img src="docs/screenshots/phone-tip.jpg" width="320" /> |
 
@@ -132,16 +150,22 @@ flowchart LR
     UI["React UI"] -- "useLiveQuery" --> IDB[("IndexedDB<br/>one DB per account")]
     UI -- "save / remove" --> IDB
     IDB --> OB["Outbox queue"]
-    SW["Service worker<br/>(app shell cache)"]
   end
+  PC["Platform console<br/>/platform"]
 
-  OB -- "POST /api/sync<br/>changes + rev cursor" --> EDGE
+  OB -- "POST /api/sync" --> EDGE
+  PC -- "/api/platform/*" --> EDGE
   subgraph Server["Linux server (Docker)"]
-    EDGE["Reverse proxy<br/>HTTPS / Let's Encrypt"] --> WEB["nginx<br/>static app + /api proxy"]
-    WEB --> API["Fastify API<br/>auth · sync · admin"]
-    API --> PG[("PostgreSQL")]
+    EDGE["Reverse proxy<br/>HTTPS"] --> WEB["nginx<br/>static apps + /api proxy"]
+    WEB --> API["Fastify API"]
+    API --> CTRL[("saha_platform<br/>companies · login directory<br/>platform admins · audit log")]
+    API --> T1[("saha_t_companyA")]
+    API --> T2[("saha_t_companyB")]
+    API --> T3[("…one DB per company")]
   end
 ```
+
+**Request routing:** a sales user's session cookie carries their company id. For every request the API looks the company up in the control database (cached), refuses it if the company is suspended, and runs all queries against **that company's own database**.
 
 **Read path:** the UI reads only from IndexedDB through Dexie live queries, so screens render instantly and identically online or offline.
 
@@ -159,7 +183,15 @@ These are the engineering decisions I'd point to in an interview.
 - **Race safety**: each outbox entry carries a sequence number. After a push, an entry is removed only if it wasn't edited again while the request was in flight. Incoming server rows never overwrite records that still have unsent local edits.
 - **Per-account local databases** (`saha-crm-u-<userId>`), so a shared tablet never mixes two reps' data.
 
-### 2. Security
+### 2. Database-per-tenant multi-tenancy ([`server/src/tenants.js`](server/src/tenants.js), [`server/src/platform.js`](server/src/platform.js))
+- **One PostgreSQL database per company** instead of a shared table with a `company_id` column. A query bug can't leak data between companies, and backing up, restoring or deleting a single customer is trivial. This matters when selling to competitors in the same industry.
+- A small **control database** holds the company registry, a platform-wide **login directory** (email → company, so users sign in with just email and password), platform admins and the audit log.
+- **Connection pools are created lazily per company** and close when idle, so dozens of companies fit on a small server.
+- **Zero-downtime upgrade path**: on first start, the existing single-company database registers itself as the first company and its users are added to the login directory. Session cookies issued before the upgrade still work, so nobody was logged out.
+- Company creation is **transactional in spirit**: if migrating the new database or creating its admin fails, the database and registry entry are rolled back.
+- Platform sessions use a **separate cookie and token scope**, so a company admin's session can never call platform endpoints, and vice versa.
+
+### 3. Security
 - Passwords hashed with **bcrypt**. Sessions are **JWTs in `httpOnly`, `Secure`, `SameSite=Lax` cookies**, so the token is never readable by JavaScript.
 - **Token versioning**: changing a password or deactivating a user increments `token_version`, which instantly invalidates every existing session on every device.
 - **Data isolation is enforced on the server**: every sync query is scoped to `owner_id = <session user>`, and the client-supplied owner is ignored. Admin endpoints check the role on every request.
@@ -167,16 +199,16 @@ These are the engineering decisions I'd point to in an interview.
 - **Login brute-force throttling** per IP and email.
 - Admins **cannot lock themselves out** (no self-demotion or self-deactivation).
 
-### 3. Schema-driven backend ([`server/src/schema.js`](server/src/schema.js))
+### 4. Schema-driven backend ([`server/src/schema.js`](server/src/schema.js))
 One `TABLES` definition drives the PostgreSQL DDL (including additive `ALTER TABLE … ADD COLUMN IF NOT EXISTS` migrations), input validation, row↔object mapping and the admin search. Adding a field to a collection is a one-line change.
 
-### 4. Production deployment on a small shared VPS
+### 5. Production deployment on a small shared VPS
 - Two small containers: **nginx** (about 5 MB RAM) and the **Node API** (about 20 MB RAM, capped at 256 MB). They run next to other services behind an existing **Nginx Proxy Manager** with Let's Encrypt.
 - The frontend is **built locally and shipped as static files**, so a server with 1.4 GB of RAM never runs a heavy build.
 - The app uses its **own database and least-privilege role** inside a shared PostgreSQL instance. Secrets are generated on the server and never leave it.
 - Cache headers are tuned for PWAs: `index.html` and `sw.js` are never cached, and hashed assets are immutable for a year, so updates reach phones right away.
 
-### 5. Domain-specific UX
+### 6. Domain-specific UX
 Turkish locale everywhere (`Intl` number and date formats, Turkish-aware sorting and case-insensitive search). WhatsApp deep links normalise Turkish phone numbers (`0532…` → `90532…`). The customer picker creates new customers inline to keep data entry fast in the field.
 
 ## Tech stack
@@ -212,18 +244,22 @@ npm install
 npm run dev
 ```
 
-**Demo accounts** (created by `seed:demo`, local only, password `demo1234`):
+**Demo accounts** (created by `seed:demo`, local only). The seed creates two fictional companies, each in its own database:
 
-| Email | Role |
-|---|---|
-| `yonetici@demo.local` | Admin (sees the whole team) |
-| `ayse@demo.local`, `murat@demo.local`, `emre@demo.local` | Sales reps |
+| Where | Email | Password | Role |
+|---|---|---|---|
+| `http://localhost:5173/platform` | `platform@demo.local` | `platform1234` | Platform admin (software provider) |
+| App, company *Demo Demir Çelik* | `yonetici@demo.local` | `demo1234` | Company admin |
+| App, company *Demo Demir Çelik* | `ayse@`, `murat@`, `emre@demo.local` | `demo1234` | Sales reps |
+| App, company *Anadolu Metal* | `admin@anadolu.demo` / `satis@anadolu.demo` | `demo1234` | Company admin / sales rep |
 
-To create a real admin account interactively (the password is typed, never passed as an argument):
+To create a real platform admin interactively (the password is typed, never passed as an argument):
 
 ```bash
-cd server && node --env-file=.env scripts/create-admin.js
+cd server && node --env-file=.env scripts/create-platform-admin.js
 ```
+
+Companies and their first admins are then created from the platform console.
 
 ## Deployment
 
@@ -234,7 +270,13 @@ cp deploy/deploy.env.example deploy/deploy.env   # set SERVER=root@your-server
 sh deploy/deploy.sh
 ```
 
-`deploy.sh` builds the frontend, uploads the static files and the API source, creates the database and role on the first run ([`deploy/setup-db.sh`](deploy/setup-db.sh), with secrets generated on the server), then runs `docker compose up -d --build`. Point a proxy host at `saha-crm:80`.
+`deploy.sh` builds both frontends, uploads the static files and the API source, creates the first database and a role with `CREATEDB` on the first run ([`deploy/setup-db.sh`](deploy/setup-db.sh), with secrets generated on the server), then runs `docker compose up -d --build`. Point a proxy host at `saha-crm:80`. The API creates the control database and migrates every company database on startup.
+
+Create the first platform admin on the server:
+
+```bash
+ssh -t root@your-server docker exec -it saha-crm-api node scripts/create-platform-admin.js
+```
 
 For a fresh server without a reverse proxy, the root [`docker-compose.yml`](docker-compose.yml) shows a standalone setup with **Caddy** and automatic HTTPS.
 
@@ -264,6 +306,21 @@ For a fresh server without a reverse proxy, the root [`docker-compose.yml`](dock
 | `GET` | `/api/admin/records/:table?owner&q&from&to` | admin | Search any collection across the team |
 | `GET` | `/api/health` | — | Liveness and database check |
 
+**Platform API** (`/api/platform`, platform admin session):
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/auth/login`, `/auth/logout` | Platform admin session |
+| `GET` / `POST` | `/me`, `/me/password` | Own account |
+| `GET` | `/stats` | Platform totals, recent actions, API health |
+| `GET` / `POST` | `/tenants` | List companies with usage / create company + database + first admin |
+| `GET` / `PATCH` | `/tenants/:id` | Detail (usage, users, history) / edit, suspend, activate, set user limit |
+| `POST` / `PATCH` | `/tenants/:id/users[/:uid]` | Add a company user / reset password, (de)activate, change role |
+| `GET` | `/tenants/:id/export` | JSON backup of the company database |
+| `POST` | `/tenants/:id/delete` | Drop the company (needs typed company code + password) |
+| `GET` / `POST` / `PATCH` | `/admins[/:id]` | Platform admins |
+| `GET` | `/audit` | Audit log |
+
 ## Project structure
 
 ```
@@ -271,14 +328,17 @@ For a fresh server without a reverse proxy, the root [`docker-compose.yml`](dock
 │   ├── db.ts                # IndexedDB schema, save/remove + outbox, backup import
 │   ├── sync.ts              # offline-first sync engine
 │   ├── auth.tsx, api.ts     # session handling, fetch wrapper
-│   ├── components/          # forms, list rows, UI primitives, sync badge
-│   └── pages/               # dashboard, customers, visits, regions, quotes,
-│                            # projects, barter, settings, login, admin
+│   ├── components/          # forms, list rows, UI primitives, sync badge, tour, tips
+│   ├── pages/               # dashboard, customers, visits, regions, quotes,
+│   │                        # projects, barter, settings, login, admin
+│   └── platform/            # platform console (separate entry: platform.html)
 ├── server/                  # Fastify API
 │   ├── src/schema.js        # single source of truth for tables and validation
-│   ├── src/index.js         # routes: auth, sync, admin
-│   ├── src/auth.js          # bcrypt, JWT cookies, guards, throttling
-│   └── scripts/             # create-admin (interactive), seed-demo
+│   ├── src/index.js         # company routes: auth, sync, admin
+│   ├── src/tenants.js       # control DB, per-company databases, login directory
+│   ├── src/platform.js      # platform console API
+│   ├── src/auth.js          # bcrypt, JWT cookies, company + platform guards, throttling
+│   └── scripts/             # create-platform-admin, create-admin, seed-demo
 ├── deploy/                  # nginx, compose, DB bootstrap, deploy script
 └── docs/screenshots/
 ```
@@ -291,6 +351,8 @@ For a fresh server without a reverse proxy, the root [`docker-compose.yml`](dock
 - [ ] Push notifications for due follow-ups
 - [ ] Shared product price list managed by admins
 - [ ] Map view of customers and visit routes
+- [ ] Restore a company from a platform backup; scheduled automatic backups
+- [ ] Per-company branding (logo, colours) and a custom domain per company
 
 ---
 
@@ -300,6 +362,7 @@ For a fresh server without a reverse proxy, the root [`docker-compose.yml`](dock
 
 - **Satış temsilcisi için:** müşteriler ve gruplar, saha ziyaretleri ve telefon görüşmeleri, "beni ziyarete gelenler", fiyat teklifleri ve **teklifin neden tutmadığı**, Konya'nın 31 ilçesi ve diğer illerde ziyaret kapsamı, yeni projeler, barter teklifleri, takip tarihleri, Excel'e aktarma.
 - **Yeni kullanıcılar için:** ilk girişte kısa tanıtım turu (telefona kurma adımları dahil) ve her sayfada kapatılabilir ipuçları.
+- **Yazılım sağlayıcısı için (platform paneli, `/platform`):** yeni firma oluşturma (her firmaya ayrı veritabanı), askıya alma, silme, kullanıcı limiti, firma kullanıcılarının şifresini sıfırlama, yedek indirme, platform yöneticileri ve işlem kaydı.
 - **Yönetici için:** satışçı bazında performans (görüşme, teklif, tutma oranı), ekip genelinde tutmama nedenleri, tüm kayıtları filtreleyip arama, kullanıcı ekleme, şifre sıfırlama ve devre dışı bırakma.
 - **Teknik:** React + TypeScript PWA, IndexedDB ile çevrimdışı çalışma ve otomatik eşitleme, Node.js (Fastify) + PostgreSQL API, httpOnly çerezli JWT oturumları, Docker ile canlı ortam.
 
